@@ -1,0 +1,10 @@
+express
+mongoose
+dotenv
+jsonwebtoken
+bcrypt
+cors
+nodemailer
+socket.io
+multer
+cloudinary
