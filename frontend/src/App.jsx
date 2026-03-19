@@ -9,12 +9,10 @@ const ChatDashboard = lazy(() => import('./pages/ChatDashboard'));
 const LoginPage = lazy(() => import('./pages/LoginPage'));
 const OTPVerificationPage = lazy(() => import('./pages/OTPVerificationPage'));
 const SignupPage = lazy(() => import('./pages/SignupPage'));
-const UserSearchPage = lazy(() => import('./pages/UserSearchPage'));
 
 const App = () => {
   const { isAuthenticated } = useAuth();
   const [requests, setRequests] = useState([]);
-  const [selectedSearchUser, setSelectedSearchUser] = useState(null);
   const [chatRefreshKey, setChatRefreshKey] = useState(0);
 
   const loadRequests = useCallback(async () => {
@@ -38,7 +36,7 @@ const App = () => {
   };
 
   return (
-    <Layout requests={requests} onRespond={handleRespond} onSearchPick={setSelectedSearchUser}>
+    <Layout requests={requests} onRespond={handleRespond}>
       <Suspense fallback={<div className="screen-center">Loading...</div>}>
         <Routes>
           <Route path="/" element={<Navigate to={isAuthenticated ? '/dashboard' : '/login'} replace />} />
@@ -49,22 +47,11 @@ const App = () => {
             path="/dashboard"
             element={
               <PrivateRoute>
-                <ChatDashboard
-                  selectedSearchUser={selectedSearchUser}
-                  onSearchHandled={() => setSelectedSearchUser(null)}
-                  refreshKey={chatRefreshKey}
-                />
+                <ChatDashboard refreshKey={chatRefreshKey} />
               </PrivateRoute>
             }
           />
-          <Route
-            path="/search"
-            element={
-              <PrivateRoute>
-                <UserSearchPage />
-              </PrivateRoute>
-            }
-          />
+          <Route path="*" element={<Navigate to={isAuthenticated ? '/dashboard' : '/login'} replace />} />
         </Routes>
       </Suspense>
     </Layout>

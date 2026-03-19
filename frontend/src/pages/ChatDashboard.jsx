@@ -13,14 +13,13 @@ const fileToBase64 = (file) =>
     reader.readAsDataURL(file);
   });
 
-const ChatDashboard = ({ selectedSearchUser, onSearchHandled, refreshKey }) => {
+const ChatDashboard = ({ refreshKey }) => {
   const { user } = useAuth();
   const [chats, setChats] = useState([]);
   const [activeChatId, setActiveChatId] = useState('');
   const [messagesByChat, setMessagesByChat] = useState({});
   const [typingState, setTypingState] = useState(null);
   const [mobileChatOpen, setMobileChatOpen] = useState(false);
-  const [banner, setBanner] = useState('');
 
   const activeChat = useMemo(() => chats.find((chat) => chat._id === activeChatId) || null, [activeChatId, chats]);
   const activeMessages = messagesByChat[activeChatId] || [];
@@ -49,12 +48,6 @@ const ChatDashboard = ({ selectedSearchUser, onSearchHandled, refreshKey }) => {
       loadMessages(activeChatId);
     }
   }, [activeChatId, loadMessages]);
-
-  useEffect(() => {
-    if (!selectedSearchUser) return;
-    setBanner(`Found @${selectedSearchUser.username}. Send a request from the search page or navbar.`);
-    onSearchHandled?.();
-  }, [selectedSearchUser, onSearchHandled]);
 
   useEffect(() => {
     const socket = getSocket();
@@ -133,7 +126,6 @@ const ChatDashboard = ({ selectedSearchUser, onSearchHandled, refreshKey }) => {
 
   return (
     <section className="dashboard-shell">
-      {banner && <div className="banner">{banner}</div>}
       <div className="whatsapp-layout">
         <aside className={`sidebar-panel ${mobileChatOpen ? 'mobile-hidden' : ''}`}>
           <div className="sidebar-header">
