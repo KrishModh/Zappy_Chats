@@ -26,6 +26,18 @@ const SignupPage = () => {
 
   const handleSubmit = (event) => {
     event.preventDefault();
+
+    // 👈 ye validation add karo
+    const { password } = form;
+    if (password.length < 8) {
+      alert('Password must be at least 8 characters.');
+      return;
+    }
+    if (!/(?=.*[a-z])(?=.*[A-Z])(?=.*\d)/.test(password)) {
+      alert('Password must include uppercase, lowercase, and a number.');
+      return;
+    }
+
     navigate('/verify-otp', { state: { form, profilePic } });
   };
 

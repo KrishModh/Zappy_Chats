@@ -1,5 +1,5 @@
 import bcrypt from 'bcrypt';
-import cloudinary from '../config/cloudinary.js';
+import getCloudinary from '../config/cloudinary.js'; // same line, same name
 import OtpVerification from '../models/OtpVerification.js';
 import RefreshToken from '../models/RefreshToken.js';
 import User from '../models/User.js';
@@ -62,11 +62,11 @@ export const sendOtp = async ({ email }) => {
 
   await OtpVerification.findOneAndUpdate(
     { email },
-    { otp, expiresAt, verifiedAt: null, attempts: 0 },
+    { $set: { otp: String(otp), expiresAt, verifiedAt: null, attempts: 0 } }, // 👈 $set add kiya, String() wrap kiya
     { upsert: true, new: true }
   );
 
-  await sendOtpEmail(email, otp);
+  await sendOtpEmail(email, String(otp)); // 👈 String() wrap
 };
 
 export const verifyOtp = async ({ email, otp }) => {
@@ -76,7 +76,7 @@ export const verifyOtp = async ({ email, otp }) => {
     throw new ApiError(400, 'OTP expired. Please request a new code.');
   }
 
-  if (record.otp !== otp) {
+  if (record.otp !== String(otp)) { // 👈 String() add kiya
     record.attempts += 1;
     await record.save();
     throw new ApiError(400, 'OTP is invalid.');
@@ -107,6 +107,7 @@ export const signup = async ({ body, file, req, res }) => {
   let profilePic = '';
 
   if (file) {
+    const cloudinary = getCloudinary(); // 👈 ye add karo
     const base64 = `data:${file.mimetype};base64,${file.buffer.toString('base64')}`;
     const uploadResult = await cloudinary.uploader.upload(base64, {
       folder: 'zappy/profile-pictures',

@@ -1,4 +1,4 @@
-import { useEffect, useState } from 'react';
+import { useEffect, useRef, useState } from 'react';
 import { useLocation, useNavigate } from 'react-router-dom';
 import api from '../api/client';
 import { useAuth } from '../context/AuthContext';
@@ -11,6 +11,8 @@ const OTPVerificationPage = () => {
   const { state } = useLocation();
   const navigate = useNavigate();
   const { setSession } = useAuth();
+  const otpSent = useRef(false); // 👈 ye add karo
+
 
   useEffect(() => {
     if (!state?.form?.email) {
@@ -18,11 +20,11 @@ const OTPVerificationPage = () => {
       return;
     }
 
-    api
-      .post('/auth/send-otp', { email: state.form.email })
+    api.post('/auth/send-otp', { email: state.form.email })
       .then(() => setStatus(`OTP sent to ${state.form.email}`))
-      .catch((requestError) => setError(requestError.response?.data?.message || 'Unable to send OTP.'));
-  }, [navigate, state]);
+      .catch((err) => setError(err.response?.data?.message || 'Unable to send OTP.'));
+
+  }, []); // 👈 empty dependency array — sirf ek baar chalega
 
   const handleSubmit = async (event) => {
     event.preventDefault();
