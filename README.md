@@ -210,7 +210,7 @@ All major auth, chat request, and messaging routes validate request data with `e
 
 ### Navbar Improvements
 - Zappy logo.
-- Search bar with debounce.
+- Search bar with debounce, live dropdown results, and inline request actions.
 - Chat requests dropdown with red badge counter.
 - Theme toggle.
 - Profile menu.
@@ -265,7 +265,7 @@ All major auth, chat request, and messaging routes validate request data with `e
 - `POST /api/auth/refresh`
 - `POST /api/auth/logout`
 - `GET /api/auth/me`
-- `GET /api/users/search?q=username`
+- `GET /api/users/search?query=username`
 - `POST /api/chats/requests`
 - `GET /api/chats/requests/received`
 - `PATCH /api/chats/requests/:requestId`
