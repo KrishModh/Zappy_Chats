@@ -1,7 +1,8 @@
 import jwt from 'jsonwebtoken';
+import Chat from '../models/Chat.js';
 import User from '../models/User.js';
 import { getUserChats } from '../services/chatService.js';
-import { createMessage } from '../services/messageService.js';
+import { createMessage, updateChatMessageStatuses, updateMessageStatus } from '../services/messageService.js';
 import { logger } from '../config/logger.js';
 
 const socketRooms = new Map();
@@ -32,6 +33,29 @@ const setUserOffline = async (userId, socketId) => {
   return false;
 };
 
+const emitStatusUpdates = (io, updates) => {
+  if (updates.length === 0) {
+    return;
+  }
+
+  io.to(`chat:${updates[0].chatId}`).emit('message:status', { updates });
+};
+
+const isChatOpenForRecipient = (io, chatId, senderId, participants = []) =>
+  participants.some((participant) => {
+    const participantId = participant.toString();
+    if (participantId === senderId.toString()) {
+      return false;
+    }
+
+    const participantSocketIds = socketRooms.get(participantId);
+    if (!participantSocketIds) {
+      return false;
+    }
+
+    return [...participantSocketIds].some((socketId) => io.sockets.sockets.get(socketId)?.activeChatId === chatId.toString());
+  });
+
 export const setupSocket = (io, app) => {
   io.use((socket, next) => {
     try {
@@ -57,7 +81,16 @@ export const setupSocket = (io, app) => {
 
     try {
       const chats = await getUserChats(userId, app.locals.onlineUserIds);
-      chats.forEach((chat) => socket.join(`chat:${chat._id}`));
+      for (const chat of chats) {
+        socket.join(`chat:${chat._id}`);
+        const deliveredUpdates = await updateChatMessageStatuses({
+          chatId: chat._id,
+          viewerId: userId,
+          status: 'delivered',
+          currentStatuses: ['sent']
+        });
+        emitStatusUpdates(io, deliveredUpdates);
+      }
     } catch (error) {
       logger.warn({ message: 'Unable to join chat rooms on connect.', error: error.message });
     }
@@ -85,13 +118,46 @@ export const setupSocket = (io, app) => {
 
         io.to(`chat:${payload.chatId}`).emit('message:receive', message);
         callback({ ok: true, message });
+
+        const chat = await Chat.findById(payload.chatId).select('participants').lean();
+        const recipientIsOnline = chat?.participants?.some(
+          (participant) => participant.toString() !== userId.toString() && socketRooms.has(participant.toString())
+        );
+        const recipientHasChatOpen = isChatOpenForRecipient(io, payload.chatId, userId, chat?.participants || []);
+        const nextStatus = recipientHasChatOpen ? 'seen' : 'delivered';
+
+        if (recipientIsOnline) {
+          const deliveredMessage = await updateMessageStatus({ messageId: message._id, status: nextStatus });
+          if (deliveredMessage) {
+            emitStatusUpdates(io, [
+              {
+                _id: deliveredMessage._id.toString(),
+                chatId: deliveredMessage.chatId.toString(),
+                status: deliveredMessage.status
+              }
+            ]);
+          }
+        }
       } catch (error) {
         callback({ ok: false, message: error.message });
       }
     });
 
-    socket.on('chat:join', (chatId) => {
+    socket.on('chat:join', async (chatId) => {
+      socket.activeChatId = chatId;
       socket.join(`chat:${chatId}`);
+
+      try {
+        const seenUpdates = await updateChatMessageStatuses({
+          chatId,
+          viewerId: userId,
+          status: 'seen',
+          currentStatuses: ['sent', 'delivered']
+        });
+        emitStatusUpdates(io, seenUpdates);
+      } catch (error) {
+        logger.warn({ message: 'Unable to mark chat messages as seen.', chatId, error: error.message });
+      }
     });
 
     socket.on('typing:start', ({ chatId, receiverId }) => {
@@ -103,6 +169,7 @@ export const setupSocket = (io, app) => {
     });
 
     socket.on('disconnect', async () => {
+      socket.activeChatId = null;
       const becameOffline = await setUserOffline(userId, socket.id);
       app.locals.onlineUserIds = getOnlineUserIds();
       if (becameOffline) {

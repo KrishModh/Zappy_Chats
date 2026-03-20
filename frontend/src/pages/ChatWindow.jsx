@@ -35,6 +35,14 @@ const ChatWindow = ({ chat, currentUserId, onBack, messages, onSendMessage, typi
     if (previewUrl) URL.revokeObjectURL(previewUrl);
   }, [previewUrl]);
 
+  useEffect(() => {
+    if (!socket || !chat?._id) {
+      return;
+    }
+
+    socket.emit('chat:join', chat._id);
+  }, [chat?._id, socket]);
+
   const emitTyping = (isTyping) => {
     if (!socket || !chat || !peer) return;
     socket.emit(isTyping ? 'typing:start' : 'typing:stop', {

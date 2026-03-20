@@ -368,7 +368,30 @@ img { display: block; max-width: 100%; }
   background: var(--bubble-me);
 }
 .message-bubble p { margin: 0 0 8px; line-height: 1.5; }
-.message-bubble span { display: block; font-size: 0.75rem; color: var(--muted); text-align: right; }
+.message-meta {
+  display: inline-flex;
+  align-items: center;
+  justify-content: flex-end;
+  gap: 6px;
+  width: 100%;
+  font-size: 0.75rem;
+  color: var(--muted);
+  text-align: right;
+}
+.message-status {
+  display: inline-flex;
+  min-width: 1.5rem;
+  justify-content: flex-end;
+  font-size: 0.82rem;
+  letter-spacing: -0.08em;
+}
+.message-status.sent,
+.message-status.delivered {
+  color: var(--muted);
+}
+.message-status.seen {
+  color: #38bdf8;
+}
 .message-image { width: 240px; max-height: 260px; margin-bottom: 8px; border-radius: 14px; object-fit: cover; }
 .message-composer {
   display: flex;

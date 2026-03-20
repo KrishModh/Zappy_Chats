@@ -13,6 +13,33 @@ const fileToBase64 = (file) =>
     reader.readAsDataURL(file);
   });
 
+const mergeMessage = (messages, incomingMessage) => {
+  const existingIndex = messages.findIndex(
+    (message) =>
+      message._id === incomingMessage._id ||
+      (message.clientMessageId && incomingMessage.clientMessageId && message.clientMessageId === incomingMessage.clientMessageId)
+  );
+
+  if (existingIndex === -1) {
+    return [...messages, incomingMessage];
+  }
+
+  return messages.map((message, index) => (index === existingIndex ? { ...message, ...incomingMessage } : message));
+};
+
+const applyStatusUpdates = (messages, updates) => {
+  if (!updates?.length) {
+    return messages;
+  }
+
+  const statusById = new Map(updates.map((update) => [update._id, update.status]));
+  return messages.map((message) =>
+    statusById.has(message._id?.toString?.() || message._id)
+      ? { ...message, status: statusById.get(message._id?.toString?.() || message._id) }
+      : message
+  );
+};
+
 const ChatDashboard = ({ refreshKey }) => {
   const { user } = useAuth();
   const [chats, setChats] = useState([]);
@@ -36,7 +63,6 @@ const ChatDashboard = ({ refreshKey }) => {
     if (!chatId) return;
     const { data } = await api.get(`/messages/${chatId}`);
     setMessagesByChat((current) => ({ ...current, [chatId]: data }));
-    getSocket()?.emit('chat:join', chatId);
   }, []);
 
   useEffect(() => {
@@ -54,13 +80,10 @@ const ChatDashboard = ({ refreshKey }) => {
     if (!socket) return undefined;
 
     const handleMessage = (message) => {
-      setMessagesByChat((current) => {
-        const existing = current[message.chatId] || [];
-        if (existing.some((item) => item.clientMessageId && item.clientMessageId === message.clientMessageId)) {
-          return current;
-        }
-        return { ...current, [message.chatId]: [...existing, message] };
-      });
+      setMessagesByChat((current) => ({
+        ...current,
+        [message.chatId]: mergeMessage(current[message.chatId] || [], message)
+      }));
       setChats((current) =>
         current
           .map((chat) =>
@@ -70,6 +93,28 @@ const ChatDashboard = ({ refreshKey }) => {
           )
           .sort((a, b) => new Date(b.lastMessageAt) - new Date(a.lastMessageAt))
       );
+    };
+
+    const handleMessageStatus = ({ updates }) => {
+      if (!updates?.length) {
+        return;
+      }
+
+      setMessagesByChat((current) => {
+        const next = { ...current };
+        const updatesByChat = updates.reduce((grouped, update) => {
+          const chatUpdates = grouped[update.chatId] || [];
+          chatUpdates.push(update);
+          grouped[update.chatId] = chatUpdates;
+          return grouped;
+        }, {});
+
+        Object.entries(updatesByChat).forEach(([chatId, chatUpdates]) => {
+          next[chatId] = applyStatusUpdates(current[chatId] || [], chatUpdates);
+        });
+
+        return next;
+      });
     };
 
     const handlePresence = ({ userId, isOnline, lastSeen }) => {
@@ -93,12 +138,14 @@ const ChatDashboard = ({ refreshKey }) => {
     };
 
     socket.on('message:receive', handleMessage);
+    socket.on('message:status', handleMessageStatus);
     socket.on('presence:update', handlePresence);
     socket.on('typing:update', handleTyping);
     socket.on('profile:update', handleProfileUpdate);
 
     return () => {
       socket.off('message:receive', handleMessage);
+      socket.off('message:status', handleMessageStatus);
       socket.off('presence:update', handlePresence);
       socket.off('typing:update', handleTyping);
       socket.off('profile:update', handleProfileUpdate);
@@ -125,7 +172,7 @@ const ChatDashboard = ({ refreshKey }) => {
           if (response?.ok && response.message) {
             setMessagesByChat((current) => ({
               ...current,
-              [chat._id]: [...(current[chat._id] || []), response.message]
+              [chat._id]: mergeMessage(current[chat._id] || [], response.message)
             }));
           }
           resolve(response);
