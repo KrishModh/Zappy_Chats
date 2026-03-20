@@ -9,6 +9,7 @@ const userSchema = new mongoose.Schema(
     profilePic: { type: String, default: '' },
     phone: { type: String, required: true, trim: true },
     gender: { type: String, required: true, enum: ['male', 'female', 'other'] },
+    dob: { type: Date, required: true },
     lastSeen: { type: Date, default: Date.now }
   },
   { timestamps: true }

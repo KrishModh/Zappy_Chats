@@ -1,8 +1,9 @@
 import { useEffect, useMemo, useState } from 'react';
-import { Link, useLocation } from 'react-router-dom';
+import { Link, useLocation, useNavigate } from 'react-router-dom';
 import api from '../api/client';
 import { useAuth } from '../context/AuthContext';
 import { useTheme } from '../context/ThemeContext';
+import { formatDateInputValue, formatDateOfBirth } from '../utils/formatters';
 
 const tabs = ['profile', 'password', 'appearance'];
 
@@ -10,6 +11,7 @@ const ProfilePage = () => {
   const { user, updateUser } = useAuth();
   const { theme, setTheme } = useTheme();
   const { search } = useLocation();
+  const navigate = useNavigate();
   const activeTab = useMemo(() => {
     const tab = new URLSearchParams(search).get('tab') || 'profile';
     return tabs.includes(tab) ? tab : 'profile';
@@ -25,7 +27,8 @@ const ProfilePage = () => {
     username: '',
     email: '',
     phone: '',
-    gender: 'other'
+    gender: 'other',
+    dob: ''
   });
   const [passwordForm, setPasswordForm] = useState({ oldPassword: '', newPassword: '' });
 
@@ -36,7 +39,8 @@ const ProfilePage = () => {
       username: user.username || '',
       email: user.email || '',
       phone: user.phone || '',
-      gender: user.gender || 'other'
+      gender: user.gender || 'other',
+      dob: formatDateInputValue(user.dob)
     });
   }, [user]);
 
@@ -51,6 +55,7 @@ const ProfilePage = () => {
       payload.append('username', profileForm.username);
       payload.append('phone', profileForm.phone);
       payload.append('gender', profileForm.gender);
+      payload.append('dob', profileForm.dob);
       if (profilePic) payload.append('profilePic', profilePic);
 
       const { data } = await api.put('/users/update-profile', payload);
@@ -85,9 +90,13 @@ const ProfilePage = () => {
     <section className="page-shell profile-page-shell">
       <div className="profile-layout">
         <aside className="profile-sidebar panel-card">
+          <button type="button" className="ghost back-home-button" onClick={() => navigate('/dashboard')}>
+            ← Back to Home
+          </button>
           <img className="profile-hero-avatar" src={user?.profilePic || 'https://placehold.co/120x120'} alt={user?.username} />
           <h2>{user?.fullName}</h2>
           <p>@{user?.username}</p>
+          <p className="muted-copy">DOB: {formatDateOfBirth(user?.dob)}</p>
           <nav className="profile-nav-links">
             <Link className={activeTab === 'profile' ? 'active' : ''} to="/profile">My Profile</Link>
             <Link className={activeTab === 'password' ? 'active' : ''} to="/profile?tab=password">Change Password</Link>
@@ -115,6 +124,7 @@ const ProfilePage = () => {
               <input value={profileForm.username} disabled={!isEditing} onChange={(event) => setProfileForm((current) => ({ ...current, username: event.target.value }))} />
               <input value={profileForm.email} disabled readOnly />
               <input value={profileForm.phone} disabled={!isEditing} onChange={(event) => setProfileForm((current) => ({ ...current, phone: event.target.value }))} />
+              <input type="date" value={profileForm.dob} disabled={!isEditing} onChange={(event) => setProfileForm((current) => ({ ...current, dob: event.target.value }))} />
               <select value={profileForm.gender} disabled={!isEditing} onChange={(event) => setProfileForm((current) => ({ ...current, gender: event.target.value }))}>
                 <option value="male">Male</option>
                 <option value="female">Female</option>

@@ -1,7 +1,7 @@
 import { useEffect, useMemo, useRef, useState } from 'react';
 import MessageBubble from '../components/MessageBubble';
 import { getSocket } from '../socket/socket';
-import { formatLastSeen } from '../utils/formatters';
+import { formatDateSeparator, formatLastSeen } from '../utils/formatters';
 
 const ChatWindow = ({ chat, currentUserId, onBack, messages, onSendMessage, typingState }) => {
   const [text, setText] = useState('');
@@ -17,6 +17,19 @@ const ChatWindow = ({ chat, currentUserId, onBack, messages, onSendMessage, typi
   const peer = chat?.peer;
 
   const previewUrl = useMemo(() => (imageFile ? URL.createObjectURL(imageFile) : ''), [imageFile]);
+  const groupedMessages = useMemo(
+    () =>
+      messages.reduce((items, message, index) => {
+        const currentDate = new Date(message.timestamp).toDateString();
+        const previousDate = index > 0 ? new Date(messages[index - 1].timestamp).toDateString() : null;
+        if (currentDate !== previousDate) {
+          items.push({ type: 'separator', value: formatDateSeparator(message.timestamp), key: `separator-${currentDate}` });
+        }
+        items.push({ type: 'message', value: message, key: message._id || message.clientMessageId || `${message.timestamp}-${index}` });
+        return items;
+      }, []),
+    [messages]
+  );
 
   useEffect(() => () => {
     if (previewUrl) URL.revokeObjectURL(previewUrl);
@@ -65,13 +78,17 @@ const ChatWindow = ({ chat, currentUserId, onBack, messages, onSendMessage, typi
       </header>
 
       <div className="messages-panel">
-        {messages.map((message) => (
-          <MessageBubble
-            key={message._id || message.clientMessageId}
-            message={message}
-            isMine={message.sender?.toString?.() === currentUserId || message.sender === currentUserId}
-          />
-        ))}
+        {groupedMessages.map((item) =>
+          item.type === 'separator' ? (
+            <div key={item.key} className="date-separator">{item.value}</div>
+          ) : (
+            <MessageBubble
+              key={item.key}
+              message={item.value}
+              isMine={item.value.sender?.toString?.() === currentUserId || item.value.sender === currentUserId}
+            />
+          )
+        )}
         <div ref={messageEndRef} />
       </div>
 

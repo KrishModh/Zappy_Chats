@@ -7,7 +7,8 @@ const initialForm = {
   username: '',
   password: '',
   phone: '',
-  gender: 'other'
+  gender: 'other',
+  dob: ''
 };
 
 const SignupPage = () => {
@@ -52,6 +53,7 @@ const SignupPage = () => {
           <input placeholder="Username" value={form.username} onChange={updateField('username')} required />
           <input type="password" placeholder="Password" value={form.password} onChange={updateField('password')} required />
           <input placeholder="Phone Number" value={form.phone} onChange={updateField('phone')} required />
+          <input type="date" value={form.dob} onChange={updateField('dob')} required />
           <select value={form.gender} onChange={updateField('gender')}>
             <option value="other">Other</option>
             <option value="male">Male</option>

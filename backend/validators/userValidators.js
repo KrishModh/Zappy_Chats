@@ -10,5 +10,6 @@ export const updateProfileValidation = [
     .matches(/^[a-zA-Z0-9_.]+$/)
     .withMessage('Username can only contain letters, numbers, underscores, and periods.'),
   body('phone').optional().trim().isLength({ min: 7, max: 20 }).withMessage('Phone number is invalid.'),
-  body('gender').optional().isIn(['male', 'female', 'other']).withMessage('Gender is invalid.')
+  body('gender').optional().isIn(['male', 'female', 'other']).withMessage('Gender is invalid.'),
+  body('dob').optional().isISO8601().withMessage('Date of birth is invalid.').toDate()
 ];

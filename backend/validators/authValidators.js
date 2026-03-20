@@ -6,6 +6,7 @@ const passwordRule = body('password')
   .withMessage('Password must be at least 8 characters.')
   .matches(/(?=.*[A-Z])(?=.*[a-z])(?=.*\d)/)
   .withMessage('Password must include uppercase, lowercase, and a number.');
+const dobRule = body('dob').isISO8601().withMessage('Date of birth is required.').toDate();
 
 export const sendOtpValidation = [
   emailRule,
@@ -30,6 +31,7 @@ export const signupValidation = [
   passwordRule,
   body('phone').trim().isLength({ min: 7, max: 20 }).withMessage('Phone number is invalid.'),
   body('gender').isIn(['male', 'female', 'other']).withMessage('Gender is invalid.'),
+  dobRule,
   body('otp').isLength({ min: 6, max: 6 }).withMessage('OTP must be 6 digits.')
 ];
 

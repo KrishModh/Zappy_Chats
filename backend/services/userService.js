@@ -10,6 +10,7 @@ export const serializeUser = (user, onlineUserIds = new Set()) => ({
   profilePic: user.profilePic,
   phone: user.phone,
   gender: user.gender,
+  dob: user.dob,
   lastSeen: user.lastSeen,
   createdAt: user.createdAt,
   isOnline: onlineUserIds.has(user._id.toString())
@@ -41,6 +42,7 @@ export const updateProfile = async ({ userId, body, file, onlineUserIds = new Se
   user.username = body.username || user.username;
   user.phone = body.phone || user.phone;
   user.gender = body.gender || user.gender;
+  user.dob = body.dob || user.dob;
 
   if (file) {
     const base64 = `data:${file.mimetype};base64,${file.buffer.toString('base64')}`;

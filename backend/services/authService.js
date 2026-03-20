@@ -28,6 +28,7 @@ const sanitizeUser = (user) => ({
   profilePic: user.profilePic,
   phone: user.phone,
   gender: user.gender,
+  dob: user.dob,
   lastSeen: user.lastSeen,
   createdAt: user.createdAt
 });
@@ -113,7 +114,7 @@ export const verifyOtp = async ({ email, otp, purpose = 'signup' }) => {
 };
 
 export const signup = async ({ body, file, req, res }) => {
-  const { fullName, email, username, password, phone, gender, otp } = body;
+  const { fullName, email, username, password, phone, gender, dob, otp } = body;
   const otpRecord = await getOtpRecord(email, 'signup');
 
   if (!otpRecord || otpRecord.expiresAt < new Date() || otpRecord.otp !== String(otp)) {
@@ -148,7 +149,8 @@ export const signup = async ({ body, file, req, res }) => {
     password: await hashPassword(password),
     profilePic,
     phone,
-    gender
+    gender,
+    dob
   });
 
   await OtpVerification.deleteOne({ email, purpose: 'signup' });

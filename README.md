@@ -219,6 +219,7 @@ All major auth, chat request, and messaging routes validate request data with `e
 
 ## Real-Time Features
 - Message send -> Socket.IO -> backend save -> room emit.
+- WhatsApp-style date separators inside chat history.
 - Typing indicators.
 - Online/offline presence updates.
 - Last seen text.
@@ -227,11 +228,11 @@ All major auth, chat request, and messaging routes validate request data with `e
 
 ## Core Features
 - Username/password login.
-- OTP signup flow.
+- OTP signup flow with required date of birth.
 - Cloudinary profile pictures.
 - Cloudinary image messages.
 - Username search.
-- Editable profile page with Cloudinary avatar updates.
+- Editable profile page with Cloudinary avatar updates and DOB editing.
 - Change password and forgot-password OTP reset flow.
 - Chat request accept/reject flow.
 - Protected chat-only messaging.
