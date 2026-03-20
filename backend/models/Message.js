@@ -6,7 +6,7 @@ const messageSchema = new mongoose.Schema({
   message: { type: String, trim: true, maxlength: 5000, default: '' },
   image: { type: String, default: '' },
   clientMessageId: { type: String, unique: true, sparse: true },
-  status: { type: String, enum: ['sent', 'delivered', 'seen'], default: 'sent' },
+  status: { type: String, enum: ['sent', 'delivered', 'seen'], default: 'delivered' },
   timestamp: { type: Date, default: Date.now }
 });
 

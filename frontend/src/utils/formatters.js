@@ -6,18 +6,6 @@ export const formatTime = (value) => {
   }).format(new Date(value));
 };
 
-export const formatMessageStatus = (status) => {
-  switch (status) {
-    case 'seen':
-      return '✓✓';
-    case 'delivered':
-      return '✓✓';
-    case 'sent':
-    default:
-      return '✓';
-  }
-};
-
 export const formatDateSeparator = (value) => {
   const date = new Date(value);
   const today = new Date();

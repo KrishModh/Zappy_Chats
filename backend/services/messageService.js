@@ -51,7 +51,7 @@ export const createMessage = async ({ chatId, senderId, text = '', imageData = '
     message: text.trim(),
     image,
     clientMessageId,
-    status: 'sent'
+    status: 'delivered'
   });
 
   await Chat.findByIdAndUpdate(chatId, {
@@ -60,45 +60,4 @@ export const createMessage = async ({ chatId, senderId, text = '', imageData = '
   });
 
   return serializeMessage(savedMessage);
-};
-
-export const updateMessageStatus = async ({ messageId, status }) => {
-  const message = await Message.findByIdAndUpdate(
-    messageId,
-    { status },
-    {
-      new: true,
-      runValidators: true
-    }
-  ).lean();
-
-  return message ? serializeMessage(message) : null;
-};
-
-export const updateChatMessageStatuses = async ({ chatId, viewerId, status, currentStatuses = [] }) => {
-  const chat = await Chat.findById(chatId).lean();
-  if (!chat || !chat.participants.some((participant) => participant.toString() === viewerId.toString())) {
-    throw new ApiError(403, 'Chat not accessible.');
-  }
-
-  const messages = await Message.find({
-    chatId,
-    sender: { $ne: viewerId },
-    status: currentStatuses.length > 0 ? { $in: currentStatuses } : { $ne: status }
-  })
-    .select('_id')
-    .lean();
-
-  if (messages.length === 0) {
-    return [];
-  }
-
-  const messageIds = messages.map((message) => message._id);
-  await Message.updateMany({ _id: { $in: messageIds } }, { $set: { status } });
-
-  return messageIds.map((messageId) => ({
-    _id: messageId.toString(),
-    chatId: chatId.toString(),
-    status
-  }));
 };

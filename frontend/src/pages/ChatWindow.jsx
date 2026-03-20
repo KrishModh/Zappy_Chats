@@ -3,11 +3,15 @@ import MessageBubble from '../components/MessageBubble';
 import { getSocket } from '../socket/socket';
 import { formatDateSeparator, formatLastSeen } from '../utils/formatters';
 
+const TYPING_STOP_DELAY = 1500;
+
 const ChatWindow = ({ chat, currentUserId, onBack, messages, onSendMessage, typingState }) => {
   const [text, setText] = useState('');
   const [imageFile, setImageFile] = useState(null);
   const [sending, setSending] = useState(false);
   const messageEndRef = useRef(null);
+  const typingTimeoutRef = useRef(null);
+  const isTypingRef = useRef(false);
   const socket = getSocket();
 
   useEffect(() => {
@@ -15,6 +19,7 @@ const ChatWindow = ({ chat, currentUserId, onBack, messages, onSendMessage, typi
   }, [messages, typingState]);
 
   const peer = chat?.peer;
+  const isPeerTyping = typingState?.chatId === chat?._id && typingState?.isTyping && typingState?.senderId !== currentUserId;
 
   const previewUrl = useMemo(() => (imageFile ? URL.createObjectURL(imageFile) : ''), [imageFile]);
   const groupedMessages = useMemo(
@@ -35,31 +40,47 @@ const ChatWindow = ({ chat, currentUserId, onBack, messages, onSendMessage, typi
     if (previewUrl) URL.revokeObjectURL(previewUrl);
   }, [previewUrl]);
 
-  useEffect(() => {
-    if (!socket || !chat?._id) {
-      return;
-    }
-
-    socket.emit('chat:join', chat._id);
-  }, [chat?._id, socket]);
-
   const emitTyping = (isTyping) => {
-    if (!socket || !chat || !peer) return;
+    if (!socket || !chat?._id || !currentUserId) return;
     socket.emit(isTyping ? 'typing:start' : 'typing:stop', {
       chatId: chat._id,
-      receiverId: peer._id
+      senderId: currentUserId
     });
+    isTypingRef.current = isTyping;
   };
+
+  const scheduleTypingStop = () => {
+    window.clearTimeout(typingTimeoutRef.current);
+    typingTimeoutRef.current = window.setTimeout(() => {
+      emitTyping(false);
+    }, TYPING_STOP_DELAY);
+  };
+
+  const stopTyping = () => {
+    window.clearTimeout(typingTimeoutRef.current);
+    typingTimeoutRef.current = null;
+    if (isTypingRef.current) {
+      emitTyping(false);
+    }
+  };
+
+  useEffect(() => () => {
+    stopTyping();
+  }, []);
+
+  useEffect(() => {
+    stopTyping();
+  }, [chat?._id]);
 
   const handleSubmit = async (event) => {
     event.preventDefault();
     if (!chat || (!text.trim() && !imageFile)) return;
 
+    stopTyping();
     setSending(true);
     await onSendMessage(chat, { text, imageFile });
     setText('');
     setImageFile(null);
-    emitTyping(false);
     setSending(false);
   };
 
@@ -81,7 +102,7 @@ const ChatWindow = ({ chat, currentUserId, onBack, messages, onSendMessage, typi
         <img src={peer?.profilePic || 'https://placehold.co/48x48'} alt={peer?.username} />
         <div>
           <strong>{peer?.fullName || peer?.username}</strong>
-          <p>{typingState?.chatId === chat._id && typingState?.isTyping ? 'typing...' : formatLastSeen(peer?.lastSeen, peer?.isOnline)}</p>
+          <p>{formatLastSeen(peer?.lastSeen, peer?.isOnline)}</p>
         </div>
       </header>
 
@@ -98,6 +119,21 @@ const ChatWindow = ({ chat, currentUserId, onBack, messages, onSendMessage, typi
           )
         )}
         <div ref={messageEndRef} />
+      </div>
+
+      <div className={`typing-indicator ${isPeerTyping ? 'visible' : ''}`} aria-live="polite">
+        {isPeerTyping ? (
+          <>
+            <span className="typing-indicator__label">{peer?.fullName || peer?.username || 'User'} is typing</span>
+            <span className="typing-indicator__dots" aria-hidden="true">
+              <span />
+              <span />
+              <span />
+            </span>
+          </>
+        ) : (
+          <span className="typing-indicator__placeholder">&nbsp;</span>
+        )}
       </div>
 
       <form className="message-composer" onSubmit={handleSubmit}>
@@ -120,10 +156,20 @@ const ChatWindow = ({ chat, currentUserId, onBack, messages, onSendMessage, typi
           <input
             value={text}
             onChange={(event) => {
-              setText(event.target.value);
-              emitTyping(Boolean(event.target.value.trim()));
+              const nextValue = event.target.value;
+              setText(nextValue);
+
+              if (!nextValue.trim()) {
+                stopTyping();
+                return;
+              }
+
+              if (!isTypingRef.current) {
+                emitTyping(true);
+              }
+              scheduleTypingStop();
             }}
-            onBlur={() => emitTyping(false)}
+            onBlur={stopTyping}
             placeholder="Type a message"
           />
         </div>
