@@ -16,6 +16,23 @@ const fileToBase64 = (file) =>
 
 const sortChats = (items) => [...items].sort((a, b) => new Date(b.lastMessageAt) - new Date(a.lastMessageAt));
 
+const upsertMessage = (messages, message) => {
+  const existingIndex = messages.findIndex(
+    (item) => item._id === message._id || (item.clientMessageId && item.clientMessageId === message.clientMessageId)
+  );
+
+  if (existingIndex === -1) {
+    return [...messages, message];
+  }
+
+  return messages.map((item, index) => (index === existingIndex ? { ...item, ...message } : item));
+};
+
+const updateExistingMessage = (messages, message) =>
+  messages.some((item) => item._id === message._id)
+    ? messages.map((item) => (item._id === message._id ? { ...item, ...message } : item))
+    : messages;
+
 const ChatDashboard = ({ refreshKey }) => {
   const { user } = useAuth();
   const [chats, setChats] = useState([]);
@@ -80,13 +97,10 @@ const ChatDashboard = ({ refreshKey }) => {
     if (!socket) return undefined;
 
     const handleMessage = (message) => {
-      setMessagesByChat((current) => {
-        const existing = current[message.chatId] || [];
-        if (existing.some((item) => item.clientMessageId && item.clientMessageId === message.clientMessageId)) {
-          return current;
-        }
-        return { ...current, [message.chatId]: [...existing, message] };
-      });
+      setMessagesByChat((current) => ({
+        ...current,
+        [message.chatId]: upsertMessage(current[message.chatId] || [], message)
+      }));
       setTypingState((current) =>
         current?.chatId === message.chatId && current?.senderId === (message.sender?.toString?.() || message.sender)
           ? null
@@ -99,6 +113,20 @@ const ChatDashboard = ({ refreshKey }) => {
               ? { ...chat, lastMessage: message.message || 'Image', lastMessageAt: message.timestamp }
               : chat
           )
+        )
+      );
+    };
+
+    const handleMessageUpdate = ({ message, lastMessagePreview }) => {
+      setMessagesByChat((current) => ({
+        ...current,
+        [message.chatId]: updateExistingMessage(current[message.chatId] || [], message)
+      }));
+      setChats((current) =>
+        current.map((chat) =>
+          chat._id === message.chatId
+            ? { ...chat, lastMessage: lastMessagePreview || 'Start chatting' }
+            : chat
         )
       );
     };
@@ -151,6 +179,7 @@ const ChatDashboard = ({ refreshKey }) => {
     };
 
     socket.on('message:receive', handleMessage);
+    socket.on('message:update', handleMessageUpdate);
     socket.on('presence:update', handlePresence);
     socket.on('typing:update', handleTyping);
     socket.on('profile:update', handleProfileUpdate);
@@ -159,6 +188,7 @@ const ChatDashboard = ({ refreshKey }) => {
 
     return () => {
       socket.off('message:receive', handleMessage);
+      socket.off('message:update', handleMessageUpdate);
       socket.off('presence:update', handlePresence);
       socket.off('typing:update', handleTyping);
       socket.off('profile:update', handleProfileUpdate);
@@ -187,13 +217,61 @@ const ChatDashboard = ({ refreshKey }) => {
           if (response?.ok && response.message) {
             setMessagesByChat((current) => ({
               ...current,
-              [chat._id]: [...(current[chat._id] || []), response.message]
+              [chat._id]: upsertMessage(current[chat._id] || [], response.message)
             }));
           }
           resolve(response);
         }
       );
     });
+  }, []);
+
+  const handleEditMessage = useCallback(async (messageId, text) => {
+    const { data } = await api.patch(`/messages/${messageId}`, { message: text });
+    setMessagesByChat((current) => ({
+      ...current,
+      [data.message.chatId]: upsertMessage(current[data.message.chatId] || [], data.message)
+    }));
+    setChats((current) =>
+      current.map((chat) =>
+        chat._id === data.message.chatId
+          ? { ...chat, lastMessage: data.lastMessagePreview || 'Start chatting' }
+          : chat
+      )
+    );
+    return data;
+  }, []);
+
+  const handleDeleteMessage = useCallback(async ({ messageId, scope, chatId }) => {
+    const { data } = await api.delete(`/messages/${messageId}`, { data: { scope } });
+
+    if (scope === 'me') {
+      setMessagesByChat((current) => ({
+        ...current,
+        [chatId]: (current[chatId] || []).filter((message) => message._id !== messageId)
+      }));
+      setChats((current) =>
+        current.map((chat) =>
+          chat._id === chatId
+            ? { ...chat, lastMessage: data.lastMessagePreview || 'Start chatting' }
+            : chat
+        )
+      );
+      return data;
+    }
+
+    setMessagesByChat((current) => ({
+      ...current,
+      [data.message.chatId]: upsertMessage(current[data.message.chatId] || [], data.message)
+    }));
+    setChats((current) =>
+      current.map((chat) =>
+        chat._id === data.message.chatId
+          ? { ...chat, lastMessage: data.lastMessagePreview || 'Start chatting' }
+          : chat
+      )
+    );
+    return data;
   }, []);
 
   const handleRemoveFriend = useCallback(async (chat) => {
@@ -249,6 +327,8 @@ const ChatDashboard = ({ refreshKey }) => {
               currentUserId={user?._id || ''}
               messages={activeMessages}
               onSendMessage={handleSendMessage}
+              onEditMessage={handleEditMessage}
+              onDeleteMessage={handleDeleteMessage}
               typingState={typingState}
               onBack={() => setMobileChatOpen(false)}
             />
