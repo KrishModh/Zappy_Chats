@@ -87,7 +87,8 @@ export const getUserChats = async (userId, onlineUserIds = new Set()) => {
     .sort({ lastMessageAt: -1 })
     .lean();
 
-  return chats.map((chat) => serializeChatForUser(chat, userId, onlineUserIds));
+  const previews = await Promise.all(chats.map((chat) => getLastMessagePreview(chat._id, userId)));
+  return chats.map((chat, index) => serializeChatForUser({ ...chat, lastMessage: previews[index] }, userId, onlineUserIds));
 };
 
 export const ensureChatParticipant = async (chatId, userId) => {
@@ -129,7 +130,12 @@ export const removeFriend = async (chatId, currentUserId) => {
   };
 };
 
-export const getLastMessagePreview = async (chatId) => {
-  const latest = await Message.findOne({ chatId }).sort({ timestamp: -1 }).lean();
+export const getLastMessagePreview = async (chatId, userId = null) => {
+  const query = { chatId };
+  if (userId) {
+    query.deletedFor = { $ne: userId };
+  }
+
+  const latest = await Message.findOne(query).sort({ timestamp: -1 }).lean();
   return latest ? latest.message || 'Image' : '';
 };

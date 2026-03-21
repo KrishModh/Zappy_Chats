@@ -403,9 +403,10 @@ img { display: block; max-width: 100%; }
   font-size: 0.82rem;
 }
 .message-bubble {
+  position: relative;
   align-self: flex-start;
   max-width: min(72%, 520px);
-  padding: 12px 14px 10px;
+  padding: 16px 14px 10px;
   border-radius: 18px 18px 18px 6px;
   background: var(--bubble-them);
   animation: riseIn 180ms ease;
@@ -415,9 +416,97 @@ img { display: block; max-width: 100%; }
   border-radius: 18px 18px 6px 18px;
   background: var(--bubble-me);
 }
+.message-bubble.deleted {
+  opacity: 0.86;
+}
 .message-bubble p { margin: 0 0 8px; line-height: 1.5; }
 .message-bubble span { display: block; font-size: 0.75rem; color: var(--muted); text-align: right; }
+.message-meta-line {
+  display: flex !important;
+  justify-content: flex-end;
+  align-items: center;
+  gap: 8px;
+}
+.message-deleted-copy {
+  color: var(--muted);
+  font-style: italic;
+}
+.message-menu-button {
+  position: absolute;
+  top: 6px;
+  right: 8px;
+  border: none;
+  border-radius: 12px;
+  background: transparent;
+  color: var(--muted);
+  font-size: 1rem;
+  padding: 4px 8px;
+}
+.message-menu-button:hover {
+  background: color-mix(in srgb, var(--surface) 60%, transparent);
+  color: var(--text);
+}
+.message-edit-box {
+  display: grid;
+  gap: 8px;
+}
+.message-edit-actions {
+  display: flex;
+  justify-content: flex-end;
+  gap: 8px;
+}
+.message-edit-actions button {
+  border: none;
+  border-radius: 12px;
+  padding: 8px 12px;
+}
 .message-image { width: 240px; max-height: 260px; margin-bottom: 8px; border-radius: 14px; object-fit: cover; }
+.message-modal-overlay {
+  position: fixed;
+  inset: 0;
+  z-index: 60;
+  display: grid;
+  place-items: center;
+  padding: 20px;
+  background: rgba(15, 23, 42, 0.45);
+  backdrop-filter: blur(6px);
+}
+.message-modal {
+  width: min(100%, 360px);
+  padding: 20px;
+  border: 1px solid var(--border);
+  border-radius: 24px;
+  background: var(--surface);
+  box-shadow: var(--shadow);
+  animation: riseIn 180ms ease;
+}
+.message-modal__header h3 {
+  margin: 0 0 8px;
+}
+.message-modal__header p {
+  margin: 0;
+  color: var(--muted);
+  line-height: 1.5;
+}
+.message-modal__actions {
+  display: grid;
+  gap: 10px;
+  margin-top: 18px;
+}
+.message-modal__action {
+  border: none;
+  border-radius: 16px;
+  padding: 14px 16px;
+  background: var(--surface-2);
+  color: var(--text);
+  text-align: left;
+}
+.message-modal__action.danger {
+  color: #ef4444;
+}
+.message-modal__action:hover {
+  transform: translateY(-1px);
+}
 .typing-indicator {
   min-height: 24px;
   display: flex;

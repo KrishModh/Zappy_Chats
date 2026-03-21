@@ -1,14 +1,21 @@
 import { useEffect, useMemo, useRef, useState } from 'react';
+import MessageActionModal from '../components/MessageActionModal';
 import MessageBubble from '../components/MessageBubble';
 import { getSocket } from '../socket/socket';
 import { formatDateSeparator, formatLastSeen } from '../utils/formatters';
 
 const TYPING_STOP_DELAY = 1500;
+const MESSAGE_ACTION_TIME_LIMIT = 5 * 60 * 1000;
+const MESSAGE_ACTION_TIME_LIMIT_TEXT = 'You can only edit or delete messages within 5 minutes of sending.';
 
-const ChatWindow = ({ chat, currentUserId, onBack, messages, onSendMessage, typingState }) => {
+const ChatWindow = ({ chat, currentUserId, onBack, messages, onSendMessage, onEditMessage, onDeleteMessage, typingState }) => {
   const [text, setText] = useState('');
   const [imageFile, setImageFile] = useState(null);
   const [sending, setSending] = useState(false);
+  const [actionMessage, setActionMessage] = useState(null);
+  const [noticeMessage, setNoticeMessage] = useState('');
+  const [editingMessageId, setEditingMessageId] = useState('');
+  const [editingValue, setEditingValue] = useState('');
   const messageEndRef = useRef(null);
   const typingTimeoutRef = useRef(null);
   const isTypingRef = useRef(false);
@@ -72,6 +79,89 @@ const ChatWindow = ({ chat, currentUserId, onBack, messages, onSendMessage, typi
     stopTyping();
   }, [chat?._id]);
 
+  useEffect(() => {
+    if (!editingMessageId) {
+      return;
+    }
+
+    const targetMessage = messages.find((message) => message._id === editingMessageId);
+    if (!targetMessage) {
+      setEditingMessageId('');
+      setEditingValue('');
+    }
+  }, [editingMessageId, messages]);
+
+  const openNotice = (message) => {
+    setActionMessage(null);
+    setNoticeMessage(message);
+  };
+
+  const withinEditWindow = (message) => Date.now() - new Date(message.timestamp).getTime() <= MESSAGE_ACTION_TIME_LIMIT;
+
+  const startEditing = (message) => {
+    if (!message.message || message.isDeleted) {
+      openNotice('Only non-deleted text messages can be edited.');
+      return;
+    }
+
+    if (!withinEditWindow(message)) {
+      openNotice(MESSAGE_ACTION_TIME_LIMIT_TEXT);
+      return;
+    }
+
+    setActionMessage(null);
+    setEditingMessageId(message._id);
+    setEditingValue(message.message);
+  };
+
+  const handleDeleteAction = async (scope) => {
+    if (!actionMessage) {
+      return;
+    }
+
+    if (scope === 'everyone' && !withinEditWindow(actionMessage)) {
+      openNotice(MESSAGE_ACTION_TIME_LIMIT_TEXT);
+      return;
+    }
+
+    try {
+      await onDeleteMessage({ messageId: actionMessage._id, scope, chatId: actionMessage.chatId });
+      setActionMessage(null);
+      if (editingMessageId === actionMessage._id) {
+        setEditingMessageId('');
+        setEditingValue('');
+      }
+    } catch (error) {
+      openNotice(error.response?.data?.message || 'Unable to update the message right now.');
+    }
+  };
+
+  const handleSaveEdit = async () => {
+    if (!editingMessageId) {
+      return;
+    }
+
+    const targetMessage = messages.find((message) => message._id === editingMessageId);
+    if (!targetMessage) {
+      setEditingMessageId('');
+      setEditingValue('');
+      return;
+    }
+
+    if (!withinEditWindow(targetMessage)) {
+      openNotice(MESSAGE_ACTION_TIME_LIMIT_TEXT);
+      return;
+    }
+
+    try {
+      await onEditMessage(editingMessageId, editingValue);
+      setEditingMessageId('');
+      setEditingValue('');
+    } catch (error) {
+      openNotice(error.response?.data?.message || 'Unable to edit the message right now.');
+    }
+  };
+
   const handleSubmit = async (event) => {
     event.preventDefault();
     if (!chat || (!text.trim() && !imageFile)) return;
@@ -95,6 +185,19 @@ const ChatWindow = ({ chat, currentUserId, onBack, messages, onSendMessage, typi
     );
   }
 
+  const actionOptions = actionMessage
+    ? [
+        ...(actionMessage.sender?.toString?.() === currentUserId || actionMessage.sender === currentUserId
+          ? [
+              { label: 'Delete for everyone', tone: 'danger', onClick: () => handleDeleteAction('everyone') },
+              { label: 'Delete for me', tone: 'danger', onClick: () => handleDeleteAction('me') },
+              { label: 'Edit message', onClick: () => startEditing(actionMessage) }
+            ]
+          : [{ label: 'Delete for me', tone: 'danger', onClick: () => handleDeleteAction('me') }]),
+        { label: 'Cancel', onClick: () => setActionMessage(null) }
+      ]
+    : [];
+
   return (
     <section className="chat-panel">
       <header className="chat-header">
@@ -115,6 +218,15 @@ const ChatWindow = ({ chat, currentUserId, onBack, messages, onSendMessage, typi
               key={item.key}
               message={item.value}
               isMine={item.value.sender?.toString?.() === currentUserId || item.value.sender === currentUserId}
+              isEditing={editingMessageId === item.value._id}
+              editValue={editingValue}
+              onEditChange={setEditingValue}
+              onEditCancel={() => {
+                setEditingMessageId('');
+                setEditingValue('');
+              }}
+              onEditSave={handleSaveEdit}
+              onOpenActions={setActionMessage}
             />
           )
         )}
@@ -175,6 +287,21 @@ const ChatWindow = ({ chat, currentUserId, onBack, messages, onSendMessage, typi
         </div>
         <button type="submit" disabled={sending}>{sending ? 'Sending...' : 'Send'}</button>
       </form>
+
+      <MessageActionModal
+        open={Boolean(actionMessage)}
+        title="Message actions"
+        description="Choose what you want to do with this message."
+        actions={actionOptions}
+        onClose={() => setActionMessage(null)}
+      />
+      <MessageActionModal
+        open={Boolean(noticeMessage)}
+        title="Action unavailable"
+        description={noticeMessage}
+        actions={[{ label: 'OK', onClick: () => setNoticeMessage('') }]}
+        onClose={() => setNoticeMessage('')}
+      />
     </section>
   );
 };

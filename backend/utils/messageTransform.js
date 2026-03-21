@@ -6,5 +6,9 @@ export const serializeMessage = (messageDoc) => ({
   image: messageDoc.image,
   clientMessageId: messageDoc.clientMessageId,
   status: messageDoc.status,
+  isDeleted: Boolean(messageDoc.isDeleted),
+  deletedFor: (messageDoc.deletedFor || []).map((entry) => entry.toString()),
+  isEdited: Boolean(messageDoc.isEdited),
+  editedAt: messageDoc.editedAt,
   timestamp: messageDoc.timestamp
 });
