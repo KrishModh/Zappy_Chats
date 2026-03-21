@@ -32,12 +32,13 @@ const ChatDashboard = ({ refreshKey }) => {
     }
   }, [activeChatId]);
 
-  const loadMessages = useCallback(async (chatId) => {
-    if (!chatId) return;
-    const { data } = await api.get(`/messages/${chatId}`);
-    setMessagesByChat((current) => ({ ...current, [chatId]: data }));
-    getSocket()?.emit('chat:join', chatId);
-  }, []);
+const loadMessages = useCallback(async (chatId) => {
+  if (!chatId) return;
+  const { data } = await api.get(`/messages/${chatId}`);
+  setMessagesByChat((current) => ({ ...current, [chatId]: data }));
+  getSocket()?.emit('chat:join', chatId);
+  getSocket()?.emit('chat:read', chatId); // 👈 chat khulte hi read
+}, []);
 
   useEffect(() => {
     loadChats();
@@ -46,6 +47,7 @@ const ChatDashboard = ({ refreshKey }) => {
   useEffect(() => {
     if (activeChatId) {
       loadMessages(activeChatId);
+      // 👇 Yahan se chat:read hataya
     }
   }, [activeChatId, loadMessages]);
 
@@ -53,28 +55,55 @@ const ChatDashboard = ({ refreshKey }) => {
     const socket = getSocket();
     if (!socket) return undefined;
 
-    const handleMessage = (message) => {
+const handleMessage = (message) => {
+  setMessagesByChat((current) => {
+    const existing = current[message.chatId] || [];
+    if (existing.some((item) => item.clientMessageId && item.clientMessageId === message.clientMessageId)) {
+      return current;
+    }
+    return { ...current, [message.chatId]: [...existing, message] };
+  });
+
+  setTypingState((current) =>
+    current?.chatId === message.chatId && current?.senderId === (message.sender?.toString?.() || message.sender)
+      ? null
+      : current
+  );
+
+  setChats((current) =>
+    current
+      .map((chat) =>
+        chat._id === message.chatId
+          ? { ...chat, lastMessage: message.message || 'Image', lastMessageAt: message.timestamp }
+          : chat
+      )
+      .sort((a, b) => new Date(b.lastMessageAt) - new Date(a.lastMessageAt))
+  );
+
+  // 👇 Agar ye chat abhi open hai toh read mark karo
+  setActiveChatId((currentActiveChatId) => {
+    if (currentActiveChatId === message.chatId) {
+      getSocket()?.emit('chat:read', message.chatId);
+    }
+    return currentActiveChatId;
+  });
+};
+
+    const handleMessageStatus = ({ updates }) => {
+      if (!updates?.length) return;
+
       setMessagesByChat((current) => {
-        const existing = current[message.chatId] || [];
-        if (existing.some((item) => item.clientMessageId && item.clientMessageId === message.clientMessageId)) {
-          return current;
-        }
-        return { ...current, [message.chatId]: [...existing, message] };
+        const next = { ...current };
+        updates.forEach((update) => {
+          const chatMessages = next[update.chatId] || [];
+          next[update.chatId] = chatMessages.map((message) =>
+            message._id?.toString() === update._id?.toString()
+              ? { ...message, status: update.status }
+              : message
+          );
+        });
+        return next;
       });
-      setTypingState((current) =>
-        current?.chatId === message.chatId && current?.senderId === (message.sender?.toString?.() || message.sender)
-          ? null
-          : current
-      );
-      setChats((current) =>
-        current
-          .map((chat) =>
-            chat._id === message.chatId
-              ? { ...chat, lastMessage: message.message || 'Image', lastMessageAt: message.timestamp }
-              : chat
-          )
-          .sort((a, b) => new Date(b.lastMessageAt) - new Date(a.lastMessageAt))
-      );
     };
 
     const handlePresence = ({ userId, isOnline, lastSeen }) => {
@@ -100,12 +129,14 @@ const ChatDashboard = ({ refreshKey }) => {
     };
 
     socket.on('message:receive', handleMessage);
+    socket.on('message:status', handleMessageStatus);
     socket.on('presence:update', handlePresence);
     socket.on('typing:update', handleTyping);
     socket.on('profile:update', handleProfileUpdate);
 
     return () => {
       socket.off('message:receive', handleMessage);
+      socket.off('message:status', handleMessageStatus);
       socket.off('presence:update', handlePresence);
       socket.off('typing:update', handleTyping);
       socket.off('profile:update', handleProfileUpdate);
@@ -122,14 +153,8 @@ const ChatDashboard = ({ refreshKey }) => {
     await new Promise((resolve) => {
       socket.emit(
         'message:send',
-        {
-          chatId: chat._id,
-          message: text,
-          imageData,
-          clientMessageId
-        },
+        { chatId: chat._id, message: text, imageData, clientMessageId },
         (response) => {
-          // State update nahi — message:receive event handle karega
           resolve(response);
         }
       );

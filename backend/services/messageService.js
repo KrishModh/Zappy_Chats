@@ -1,4 +1,4 @@
-import cloudinary from '../config/cloudinary.js';
+import getCloudinary from '../config/cloudinary.js';
 import Chat from '../models/Chat.js';
 import Message from '../models/Message.js';
 import { ApiError } from '../utils/apiError.js';
@@ -15,10 +15,9 @@ export const getMessagesForChat = async (chatId, userId) => {
 };
 
 const uploadInlineImage = async (imageData) => {
-  if (!imageData) {
-    return '';
-  }
+  if (!imageData) return '';
 
+  const cloudinary = getCloudinary();
   const result = await cloudinary.uploader.upload(imageData, {
     folder: 'zappy/messages',
     resource_type: 'image'
@@ -51,7 +50,7 @@ export const createMessage = async ({ chatId, senderId, text = '', imageData = '
     message: text.trim(),
     image,
     clientMessageId,
-    status: 'delivered'
+    status: 'sent'
   });
 
   await Chat.findByIdAndUpdate(chatId, {
@@ -60,4 +59,52 @@ export const createMessage = async ({ chatId, senderId, text = '', imageData = '
   });
 
   return serializeMessage(savedMessage);
+};
+
+export const updateDeliveryStatus = async (chatId, userId) => {
+  const chat = await Chat.findById(chatId);
+  if (!chat) return [];
+
+  // 👇 Pehle find karo jo update honge
+  const toUpdate = await Message.find({
+    chatId,
+    sender: { $ne: userId },
+    status: 'sent'
+  }).lean();
+
+  if (toUpdate.length === 0) return [];
+
+  const ids = toUpdate.map((m) => m._id);
+  await Message.updateMany({ _id: { $in: ids } }, { $set: { status: 'delivered' } });
+
+  return toUpdate.map((message) => ({
+    _id: message._id.toString(),
+    chatId: message.chatId.toString(),
+    status: 'delivered'
+  }));
+};
+
+export const markMessagesAsRead = async (chatId, userId) => {
+  // 👇 Sirf wahi messages jo ABHI update honge
+  const toUpdate = await Message.find({
+    chatId,
+    sender: { $ne: userId },
+    status: { $in: ['sent', 'delivered'] }
+  }).lean();
+
+  if (toUpdate.length === 0) return [];
+
+  const ids = toUpdate.map((m) => m._id);
+  await Message.updateMany({ _id: { $in: ids } }, { $set: { status: 'read' } });
+
+  return toUpdate.map((message) => ({
+    _id: message._id.toString(),
+    chatId: message.chatId.toString(),
+    status: 'read'
+  }));
+};
+
+// 👇 Single message status update
+export const updateMessageStatus = async (messageId, status) => {
+  await Message.findByIdAndUpdate(messageId, { $set: { status } });
 };

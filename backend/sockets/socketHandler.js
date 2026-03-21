@@ -1,7 +1,7 @@
 import jwt from 'jsonwebtoken';
 import User from '../models/User.js';
 import { getUserChats } from '../services/chatService.js';
-import { createMessage } from '../services/messageService.js';
+import { createMessage, updateDeliveryStatus, markMessagesAsRead, updateMessageStatus } from '../services/messageService.js';
 import { logger } from '../config/logger.js';
 
 const socketRooms = new Map();
@@ -17,9 +17,7 @@ const setUserOnline = (userId, socketId) => {
 
 const setUserOffline = async (userId, socketId) => {
   const sockets = socketRooms.get(userId);
-  if (!sockets) {
-    return false;
-  }
+  if (!sockets) return false;
 
   sockets.delete(socketId);
   if (sockets.size === 0) {
@@ -36,10 +34,7 @@ export const setupSocket = (io, app) => {
   io.use((socket, next) => {
     try {
       const token = socket.handshake.auth?.token;
-      if (!token) {
-        return next(new Error('Authentication required.'));
-      }
-
+      if (!token) return next(new Error('Authentication required.'));
       const decoded = jwt.verify(token, process.env.JWT_SECRET);
       socket.userId = decoded.userId;
       return next();
@@ -58,11 +53,19 @@ export const setupSocket = (io, app) => {
     try {
       const chats = await getUserChats(userId, app.locals.onlineUserIds);
       chats.forEach((chat) => socket.join(`chat:${chat._id}`));
+
+// Connection pe — saare chats mein MUJHE bheje gaye sent messages deliver karo
+for (const chat of chats) {
+  const updates = await updateDeliveryStatus(chat._id, userId); // userId = receiver
+  if (updates?.length) {
+    io.to(`chat:${chat._id}`).emit('message:status', { updates });
+  }
+}
     } catch (error) {
       logger.warn({ message: 'Unable to join chat rooms on connect.', error: error.message });
     }
 
-    socket.on('message:send', async (payload, callback = () => {}) => {
+    socket.on('message:send', async (payload, callback = () => { }) => {
       try {
         const clientMessageId = payload.clientMessageId || `${socket.id}-${Date.now()}`;
         if (deliveredMessageIds.has(clientMessageId)) {
@@ -83,15 +86,41 @@ export const setupSocket = (io, app) => {
           deliveredMessageIds.delete(first);
         }
 
+        // 👇 Pehle message emit karo
         io.to(`chat:${payload.chatId}`).emit('message:receive', message);
+
+        // 👇 Agar receiver online hai toh SIRF IS MESSAGE ko delivered karo
+        const chatRoomSockets = await io.in(`chat:${payload.chatId}`).fetchSockets();
+        const receiverOnline = chatRoomSockets.some((s) => s.userId && s.userId.toString() !== userId.toString());
+
+        if (receiverOnline) {
+          await updateMessageStatus(message._id, 'delivered');
+          io.to(`chat:${payload.chatId}`).emit('message:status', {
+            updates: [{ _id: message._id, chatId: payload.chatId, status: 'delivered' }]
+          });
+        }
+
         callback({ ok: true, message });
       } catch (error) {
         callback({ ok: false, message: error.message });
       }
     });
 
+    // 👇 chat:join — sirf room join, delivered already on connection ho gaya
     socket.on('chat:join', (chatId) => {
       socket.join(`chat:${chatId}`);
+    });
+
+    // 👇 chat:read — user ne chat kholi, read mark karo
+    socket.on('chat:read', async (chatId) => {
+      try {
+        const updates = await markMessagesAsRead(chatId, userId);
+        if (updates?.length) {
+          io.to(`chat:${chatId}`).emit('message:status', { updates });
+        }
+      } catch (error) {
+        logger.warn({ message: 'Read status update failed.', error: error.message });
+      }
     });
 
     socket.on('typing:start', ({ chatId, senderId }) => {
