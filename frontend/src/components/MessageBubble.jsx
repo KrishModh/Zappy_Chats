@@ -1,4 +1,5 @@
 import { memo } from 'react';
+import ChatImage from './ChatImage';
 import { formatTime } from '../utils/formatters';
 
 const MessageBubble = memo(
@@ -10,13 +11,14 @@ const MessageBubble = memo(
     onEditChange,
     onEditCancel,
     onEditSave,
-    onOpenActions
+    onOpenActions,
+    onOpenImageViewer
   }) => (
     <article className={`message-bubble ${isMine ? 'mine' : ''} ${message.isDeleted ? 'deleted' : ''}`}>
       <button type="button" className="message-menu-button" aria-label="Message actions" onClick={() => onOpenActions(message)}>
         ⋮
       </button>
-      {message.image && <img className="message-image" src={message.image} alt="attachment" />}
+      {message.image && <ChatImage src={message.image} alt="attachment" onOpenViewer={onOpenImageViewer} />}
       {isEditing ? (
         <div className="message-edit-box">
           <input value={editValue} onChange={(event) => onEditChange(event.target.value)} maxLength={5000} autoFocus />

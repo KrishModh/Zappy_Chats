@@ -42,6 +42,7 @@ const ChatDashboard = ({ refreshKey }) => {
   const [typingState, setTypingState] = useState(null);
   const [mobileChatOpen, setMobileChatOpen] = useState(false);
   const [feedbackMessage, setFeedbackMessage] = useState('');
+  const [unreadCounts, setUnreadCounts] = useState({});
 
   const activeChat = useMemo(() => chats.find((chat) => chat._id === activeChatId) || null, [activeChatId, chats]);
   const activeMessages = messagesByChat[activeChatId] || [];
@@ -49,6 +50,12 @@ const ChatDashboard = ({ refreshKey }) => {
   const loadChats = useCallback(async () => {
     const { data } = await api.get('/chats');
     setChats(data);
+    setUnreadCounts((current) =>
+      data.reduce((next, chat) => {
+        next[chat._id] = current[chat._id] || 0;
+        return next;
+      }, {})
+    );
     setActiveChatId((current) => {
       if (current && data.some((chat) => chat._id === current)) {
         return current;
@@ -71,6 +78,7 @@ const ChatDashboard = ({ refreshKey }) => {
   useEffect(() => {
     if (activeChatId && activePanel === 'chat') {
       loadMessages(activeChatId);
+      setUnreadCounts((current) => ({ ...current, [activeChatId]: 0 }));
     }
   }, [activeChatId, activePanel, loadMessages]);
 
@@ -97,10 +105,17 @@ const ChatDashboard = ({ refreshKey }) => {
     if (!socket) return undefined;
 
     const handleMessage = (message) => {
+      const messageSenderId = message.sender?.toString?.() || message.sender;
       setMessagesByChat((current) => ({
         ...current,
         [message.chatId]: upsertMessage(current[message.chatId] || [], message)
       }));
+      if (messageSenderId !== user?._id && !(activeChatId === message.chatId && activePanel === 'chat')) {
+        setUnreadCounts((current) => ({
+          ...current,
+          [message.chatId]: (current[message.chatId] || 0) + 1
+        }));
+      }
       setTypingState((current) =>
         current?.chatId === message.chatId && current?.senderId === (message.sender?.toString?.() || message.sender)
           ? null
@@ -155,6 +170,11 @@ const ChatDashboard = ({ refreshKey }) => {
 
     const handleChatRemoved = ({ chatId, removedBy }) => {
       setChats((current) => current.filter((chat) => chat._id !== chatId));
+      setUnreadCounts((current) => {
+        const next = { ...current };
+        delete next[chatId];
+        return next;
+      });
       setMessagesByChat((current) => {
         const next = { ...current };
         delete next[chatId];
@@ -175,6 +195,7 @@ const ChatDashboard = ({ refreshKey }) => {
         return sortChats(nextChats);
       });
       setActiveChatId((current) => current || chat._id);
+      setUnreadCounts((current) => ({ ...current, [chat._id]: current[chat._id] || 0 }));
       setFeedbackMessage(`${chat.peer?.fullName || chat.peer?.username} is available again.`);
     };
 
@@ -195,7 +216,7 @@ const ChatDashboard = ({ refreshKey }) => {
       socket.off('chat:removed', handleChatRemoved);
       socket.off('chat:restored', handleChatRestored);
     };
-  }, [activeChatId, user?._id]);
+  }, [activeChatId, activePanel, user?._id]);
 
   const handleSendMessage = useCallback(async (chat, { text, imageFile }) => {
     const socket = getSocket();
@@ -302,9 +323,11 @@ const ChatDashboard = ({ refreshKey }) => {
                   key={chat._id}
                   chat={chat}
                   active={chat._id === activeChatId}
+                  unreadCount={unreadCounts[chat._id] || 0}
                   onSelect={(selectedChat) => {
                     setActiveChatId(selectedChat._id);
                     setActivePanel('chat');
+                    setUnreadCounts((current) => ({ ...current, [selectedChat._id]: 0 }));
                     setMobileChatOpen(true);
                   }}
                   onViewProfile={(selectedChat) => {

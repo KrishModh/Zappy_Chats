@@ -1,4 +1,5 @@
 import { useEffect, useMemo, useRef, useState } from 'react';
+import ImageViewerModal from '../components/ImageViewerModal';
 import MessageActionModal from '../components/MessageActionModal';
 import MessageBubble from '../components/MessageBubble';
 import { getSocket } from '../socket/socket';
@@ -16,6 +17,7 @@ const ChatWindow = ({ chat, currentUserId, onBack, messages, onSendMessage, onEd
   const [noticeMessage, setNoticeMessage] = useState('');
   const [editingMessageId, setEditingMessageId] = useState('');
   const [editingValue, setEditingValue] = useState('');
+  const [viewerImage, setViewerImage] = useState(null);
   const messageEndRef = useRef(null);
   const typingTimeoutRef = useRef(null);
   const isTypingRef = useRef(false);
@@ -77,6 +79,7 @@ const ChatWindow = ({ chat, currentUserId, onBack, messages, onSendMessage, onEd
 
   useEffect(() => {
     stopTyping();
+    setViewerImage(null);
   }, [chat?._id]);
 
   useEffect(() => {
@@ -227,6 +230,7 @@ const ChatWindow = ({ chat, currentUserId, onBack, messages, onSendMessage, onEd
               }}
               onEditSave={handleSaveEdit}
               onOpenActions={setActionMessage}
+              onOpenImageViewer={setViewerImage}
             />
           )
         )}
@@ -288,6 +292,7 @@ const ChatWindow = ({ chat, currentUserId, onBack, messages, onSendMessage, onEd
         <button type="submit" disabled={sending}>{sending ? 'Sending...' : 'Send'}</button>
       </form>
 
+      <ImageViewerModal image={viewerImage} onClose={() => setViewerImage(null)} />
       <MessageActionModal
         open={Boolean(actionMessage)}
         title="Message actions"
