@@ -3,6 +3,7 @@ import {
   getChatsController,
   getReceivedRequestsController,
   handleRequestController,
+  removeFriendController,
   sendRequestController
 } from '../controllers/chatController.js';
 import { requireAuth } from '../middleware/authMiddleware.js';
@@ -15,6 +16,7 @@ router.use(requireAuth);
 router.post('/requests', sendRequestValidation, validateRequest, sendRequestController);
 router.get('/requests/received', getReceivedRequestsController);
 router.patch('/requests/:requestId', handleRequestValidation, validateRequest, handleRequestController);
+router.delete('/:chatId', removeFriendController);
 router.get('/', getChatsController);
 
 export default router;

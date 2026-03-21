@@ -50,6 +50,7 @@ export const setupSocket = (io, app) => {
 
   io.on('connection', async (socket) => {
     const userId = socket.userId;
+    socket.join(`user:${userId}`);
     setUserOnline(userId, socket.id);
     app.locals.onlineUserIds = getOnlineUserIds();
     socket.emit('presence:bootstrap', { onlineUserIds: [...app.locals.onlineUserIds] });

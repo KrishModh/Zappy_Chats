@@ -5,7 +5,7 @@ import { ApiError } from '../utils/apiError.js';
 import { serializeMessage } from '../utils/messageTransform.js';
 
 export const getMessagesForChat = async (chatId, userId) => {
-  const chat = await Chat.findById(chatId);
+  const chat = await Chat.findOne({ _id: chatId, isActive: true });
   if (!chat || !chat.participants.some((participant) => participant.toString() === userId.toString())) {
     throw new ApiError(403, 'Chat not accessible.');
   }
@@ -28,7 +28,7 @@ const uploadInlineImage = async (imageData) => {
 };
 
 export const createMessage = async ({ chatId, senderId, text = '', imageData = '', clientMessageId = '' }) => {
-  const chat = await Chat.findById(chatId);
+  const chat = await Chat.findOne({ _id: chatId, isActive: true });
   if (!chat || !chat.participants.some((participant) => participant.toString() === senderId.toString())) {
     throw new ApiError(400, 'Chat does not exist or you do not have access.');
   }
