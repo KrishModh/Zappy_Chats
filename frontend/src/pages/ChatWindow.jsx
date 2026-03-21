@@ -1,4 +1,5 @@
 import { useEffect, useMemo, useRef, useState } from 'react';
+import ImageViewerModal from '../components/ImageViewerModal';
 import MessageActionModal from '../components/MessageActionModal';
 import MessageBubble from '../components/MessageBubble';
 import { getSocket } from '../socket/socket';
@@ -16,6 +17,7 @@ const ChatWindow = ({ chat, currentUserId, onBack, messages, onSendMessage, onEd
   const [noticeMessage, setNoticeMessage] = useState('');
   const [editingMessageId, setEditingMessageId] = useState('');
   const [editingValue, setEditingValue] = useState('');
+  const [viewerImage, setViewerImage] = useState(null);
   const messageEndRef = useRef(null);
   const typingTimeoutRef = useRef(null);
   const isTypingRef = useRef(false);
@@ -77,6 +79,7 @@ const ChatWindow = ({ chat, currentUserId, onBack, messages, onSendMessage, onEd
 
   useEffect(() => {
     stopTyping();
+    setViewerImage(null);
   }, [chat?._id]);
 
   useEffect(() => {
@@ -168,10 +171,16 @@ const ChatWindow = ({ chat, currentUserId, onBack, messages, onSendMessage, onEd
 
     stopTyping();
     setSending(true);
-    await onSendMessage(chat, { text, imageFile });
-    setText('');
-    setImageFile(null);
-    setSending(false);
+
+    try {
+      await onSendMessage(chat, { text, imageFile });
+      setText('');
+      setImageFile(null);
+    } catch (error) {
+      openNotice(error?.message || 'Unable to send message. Please try again.');
+    } finally {
+      setSending(false); // 👈 hamesha reset hoga — success ya fail dono mein
+    }
   };
 
   if (!chat) {
@@ -187,15 +196,15 @@ const ChatWindow = ({ chat, currentUserId, onBack, messages, onSendMessage, onEd
 
   const actionOptions = actionMessage
     ? [
-        ...(actionMessage.sender?.toString?.() === currentUserId || actionMessage.sender === currentUserId
-          ? [
-              { label: 'Delete for everyone', tone: 'danger', onClick: () => handleDeleteAction('everyone') },
-              { label: 'Delete for me', tone: 'danger', onClick: () => handleDeleteAction('me') },
-              { label: 'Edit message', onClick: () => startEditing(actionMessage) }
-            ]
-          : [{ label: 'Delete for me', tone: 'danger', onClick: () => handleDeleteAction('me') }]),
-        { label: 'Cancel', onClick: () => setActionMessage(null) }
-      ]
+      ...(actionMessage.sender?.toString?.() === currentUserId || actionMessage.sender === currentUserId
+        ? [
+          { label: 'Delete for everyone', tone: 'danger', onClick: () => handleDeleteAction('everyone') },
+          { label: 'Delete for me', tone: 'danger', onClick: () => handleDeleteAction('me') },
+          { label: 'Edit message', onClick: () => startEditing(actionMessage) }
+        ]
+        : [{ label: 'Delete for me', tone: 'danger', onClick: () => handleDeleteAction('me') }]),
+      { label: 'Cancel', onClick: () => setActionMessage(null) }
+    ]
     : [];
 
   return (
@@ -227,6 +236,7 @@ const ChatWindow = ({ chat, currentUserId, onBack, messages, onSendMessage, onEd
               }}
               onEditSave={handleSaveEdit}
               onOpenActions={setActionMessage}
+              onOpenImageViewer={setViewerImage}
             />
           )
         )}
@@ -288,6 +298,7 @@ const ChatWindow = ({ chat, currentUserId, onBack, messages, onSendMessage, onEd
         <button type="submit" disabled={sending}>{sending ? 'Sending...' : 'Send'}</button>
       </form>
 
+      <ImageViewerModal image={viewerImage} onClose={() => setViewerImage(null)} />
       <MessageActionModal
         open={Boolean(actionMessage)}
         title="Message actions"

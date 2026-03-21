@@ -32,10 +32,12 @@ app.use(notFoundHandler);
 app.use(errorHandler);
 
 const server = http.createServer(app);
+
 const io = new Server(server, {
   cors: corsOptions,
   pingTimeout: 20000,
-  pingInterval: 10000
+  pingInterval: 10000,
+  maxHttpBufferSize: 10 * 1024 * 1024 // 👈 andar hona chahiye
 });
 
 app.locals.io = io;

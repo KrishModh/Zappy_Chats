@@ -1,7 +1,7 @@
 import { memo, useEffect, useRef, useState } from 'react';
 import { formatTime } from '../utils/formatters';
 
-const ChatListItem = memo(({ chat, active, onSelect, onViewProfile, onRemoveFriend }) => {
+const ChatListItem = memo(({ chat, active, unreadCount = 0, onSelect, onViewProfile, onRemoveFriend }) => {
   const [menuOpen, setMenuOpen] = useState(false);
   const menuRef = useRef(null);
 
@@ -35,6 +35,7 @@ const ChatListItem = memo(({ chat, active, onSelect, onViewProfile, onRemoveFrie
         </div>
       </button>
 
+      {unreadCount > 0 && <span className="chat-unread-badge">{unreadCount}</span>}
       <div className="chat-item-menu" ref={menuRef}>
         <button
           type="button"

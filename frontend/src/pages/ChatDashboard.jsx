@@ -38,6 +38,7 @@ const ChatDashboard = ({ refreshKey }) => {
   const [typingState, setTypingState] = useState(null);
   const [mobileChatOpen, setMobileChatOpen] = useState(false);
   const [feedbackMessage, setFeedbackMessage] = useState('');
+  const [unreadCounts, setUnreadCounts] = useState({});
 
   const activeChat = useMemo(() => chats.find((chat) => chat._id === activeChatId) || null, [activeChatId, chats]);
   const activeMessages = messagesByChat[activeChatId] || [];
@@ -45,6 +46,12 @@ const ChatDashboard = ({ refreshKey }) => {
   const loadChats = useCallback(async () => {
     const { data } = await api.get('/chats');
     setChats(data);
+    setUnreadCounts((current) =>
+      data.reduce((next, chat) => {
+        next[chat._id] = current[chat._id] || 0;
+        return next;
+      }, {})
+    );
     setActiveChatId((current) => {
       if (current && data.some((chat) => chat._id === current)) return current;
       return data[0]?._id || '';
@@ -66,6 +73,7 @@ const ChatDashboard = ({ refreshKey }) => {
   useEffect(() => {
     if (activeChatId && activePanel === 'chat') {
       loadMessages(activeChatId);
+      setUnreadCounts((current) => ({ ...current, [activeChatId]: 0 }));
     }
   }, [activeChatId, activePanel, loadMessages]);
 
@@ -85,37 +93,46 @@ const ChatDashboard = ({ refreshKey }) => {
     const socket = getSocket();
     if (!socket) return undefined;
 
-    const handleMessage = (message) => {
-      // ✅ upsertMessage — double message nahi aayega
-      setMessagesByChat((current) => ({
-        ...current,
-        [message.chatId]: upsertMessage(current[message.chatId] || [], message)
-      }));
+const handleMessage = (message) => {
+  const messageSenderId = message.sender?.toString?.() || message.sender;
 
-      setTypingState((current) =>
-        current?.chatId === message.chatId && current?.senderId === (message.sender?.toString?.() || message.sender)
-          ? null
-          : current
-      );
+  setMessagesByChat((current) => ({
+    ...current,
+    [message.chatId]: upsertMessage(current[message.chatId] || [], message)
+  }));
 
-      setChats((current) =>
-        sortChats(
-          current.map((chat) =>
-            chat._id === message.chatId
-              ? { ...chat, lastMessage: message.message || 'Image', lastMessageAt: message.timestamp }
-              : chat
-          )
-        )
-      );
+  // 👇 Unread count — agar dusre ka message hai aur chat open nahi hai
+  if (messageSenderId !== user?._id && !(activeChatId === message.chatId && activePanel === 'chat')) {
+    setUnreadCounts((current) => ({
+      ...current,
+      [message.chatId]: (current[message.chatId] || 0) + 1
+    }));
+  }
 
-      // Agar ye chat abhi open hai toh read mark karo
-      setActiveChatId((currentActiveChatId) => {
-        if (currentActiveChatId === message.chatId) {
-          getSocket()?.emit('chat:read', message.chatId);
-        }
-        return currentActiveChatId;
-      });
-    };
+  setTypingState((current) =>
+    current?.chatId === message.chatId && current?.senderId === (message.sender?.toString?.() || message.sender)
+      ? null
+      : current
+  );
+
+  setChats((current) =>
+    sortChats(
+      current.map((chat) =>
+        chat._id === message.chatId
+          ? { ...chat, lastMessage: message.message || 'Image', lastMessageAt: message.timestamp }
+          : chat
+      )
+    )
+  );
+
+  // Agar ye chat abhi open hai toh read mark karo
+  setActiveChatId((currentActiveChatId) => {
+    if (currentActiveChatId === message.chatId) {
+      getSocket()?.emit('chat:read', message.chatId);
+    }
+    return currentActiveChatId;
+  });
+};
 
     // ✅ Blue tick system
     const handleMessageStatus = ({ updates }) => {
@@ -173,6 +190,11 @@ const ChatDashboard = ({ refreshKey }) => {
 
     const handleChatRemoved = ({ chatId, removedBy }) => {
       setChats((current) => current.filter((chat) => chat._id !== chatId));
+      setUnreadCounts((current) => {
+        const next = { ...current };
+        delete next[chatId];
+        return next;
+      });
       setMessagesByChat((current) => {
         const next = { ...current };
         delete next[chatId];
@@ -191,6 +213,7 @@ const ChatDashboard = ({ refreshKey }) => {
         return sortChats(nextChats);
       });
       setActiveChatId((current) => current || chat._id);
+      setUnreadCounts((current) => ({ ...current, [chat._id]: current[chat._id] || 0 }));
       setFeedbackMessage(`${chat.peer?.fullName || chat.peer?.username} is available again.`);
     };
 
@@ -213,26 +236,30 @@ const ChatDashboard = ({ refreshKey }) => {
       socket.off('chat:removed', handleChatRemoved);
       socket.off('chat:restored', handleChatRestored);
     };
-  }, [activeChatId, user?._id]);
+  }, [activeChatId, activePanel, user?._id]);
 
-  const handleSendMessage = useCallback(async (chat, { text, imageFile }) => {
-    const socket = getSocket();
-    if (!socket) return;
+const handleSendMessage = useCallback(async (chat, { text, imageFile }) => {
+  const socket = getSocket();
+  if (!socket) return;
 
-    const clientMessageId = `${chat._id}-${Date.now()}-${Math.random().toString(36).slice(2, 9)}`;
-    const imageData = imageFile ? await fileToBase64(imageFile) : '';
+  const clientMessageId = `${chat._id}-${Date.now()}-${Math.random().toString(36).slice(2, 9)}`;
+  const imageData = imageFile ? await fileToBase64(imageFile) : '';
 
-    await new Promise((resolve) => {
-      socket.emit(
-        'message:send',
-        { chatId: chat._id, message: text, imageData, clientMessageId },
-        (response) => {
-          // ✅ State update nahi — message:receive + upsertMessage handle karega
-          resolve(response);
-        }
-      );
-    });
-  }, []);
+  await new Promise((resolve) => {
+    // 👇 30 second timeout — agar callback nahi aaya toh resolve kar do
+    const timeout = window.setTimeout(() => resolve({ ok: false, timeout: true }), 30000);
+
+    socket.emit(
+      'message:send',
+      { chatId: chat._id, message: text, imageData, clientMessageId },
+      (response) => {
+        window.clearTimeout(timeout);
+        resolve(response);
+      }
+    );
+  });
+}, []);
+
 
   const handleEditMessage = useCallback(async (messageId, text) => {
     const { data } = await api.patch(`/messages/${messageId}`, { message: text });
@@ -307,9 +334,11 @@ const ChatDashboard = ({ refreshKey }) => {
                   key={chat._id}
                   chat={chat}
                   active={chat._id === activeChatId}
+                  unreadCount={unreadCounts[chat._id] || 0}
                   onSelect={(selectedChat) => {
                     setActiveChatId(selectedChat._id);
                     setActivePanel('chat');
+                    setUnreadCounts((current) => ({ ...current, [selectedChat._id]: 0 }));
                     setMobileChatOpen(true);
                   }}
                   onViewProfile={(selectedChat) => {

@@ -55,13 +55,13 @@ export const setupSocket = (io, app) => {
       const chats = await getUserChats(userId, app.locals.onlineUserIds);
       chats.forEach((chat) => socket.join(`chat:${chat._id}`));
 
-// Connection pe — saare chats mein MUJHE bheje gaye sent messages deliver karo
-for (const chat of chats) {
-  const updates = await updateDeliveryStatus(chat._id, userId); // userId = receiver
-  if (updates?.length) {
-    io.to(`chat:${chat._id}`).emit('message:status', { updates });
-  }
-}
+      // Connection pe — saare chats mein MUJHE bheje gaye sent messages deliver karo
+      for (const chat of chats) {
+        const updates = await updateDeliveryStatus(chat._id, userId); // userId = receiver
+        if (updates?.length) {
+          io.to(`chat:${chat._id}`).emit('message:status', { updates });
+        }
+      }
     } catch (error) {
       logger.warn({ message: 'Unable to join chat rooms on connect.', error: error.message });
     }
@@ -73,11 +73,21 @@ for (const chat of chats) {
           return callback({ ok: true, duplicate: true });
         }
 
+        // 👇 Image size check — 5MB se badi image reject karo
+        const imageData = payload.imageData || '';
+        if (imageData) {
+          const imageSizeBytes = Buffer.byteLength(imageData, 'utf8');
+          const maxSizeBytes = 5 * 1024 * 1024; // 5MB
+          if (imageSizeBytes > maxSizeBytes) {
+            return callback({ ok: false, message: 'Image is too large. Maximum size is 5MB.' });
+          }
+        }
+
         const message = await createMessage({
           chatId: payload.chatId,
           senderId: userId,
           text: payload.message || '',
-          imageData: payload.imageData || '',
+          imageData,
           clientMessageId
         });
 
@@ -87,10 +97,8 @@ for (const chat of chats) {
           deliveredMessageIds.delete(first);
         }
 
-        // 👇 Pehle message emit karo
         io.to(`chat:${payload.chatId}`).emit('message:receive', message);
 
-        // 👇 Agar receiver online hai toh SIRF IS MESSAGE ko delivered karo
         const chatRoomSockets = await io.in(`chat:${payload.chatId}`).fetchSockets();
         const receiverOnline = chatRoomSockets.some((s) => s.userId && s.userId.toString() !== userId.toString());
 
