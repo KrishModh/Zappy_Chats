@@ -16,46 +16,49 @@ It enables users to connect, send requests, and chat securely with features like
 ## 📸 Screenshots
 
 ### 🔐 Authentication (Login / Signup)
-![Login](./screenshots/1.png)
-![Signup](./screenshots/2.png)
+<img width="2560" height="1440" alt="1" src="https://github.com/user-attachments/assets/e833a189-96d2-4017-91a3-a31ba7ce3e69" />
+<img width="2560" height="1440" alt="2" src="https://github.com/user-attachments/assets/25f58d91-25c4-4c2a-9079-6512403981dd" />
+
 
 ---
 
 ### 💬 Chat Interface
-![Chat UI](./screenshots/3.png)
-![Chat UI](./screenshots/4.png)
-![Chat UI](./screenshots/5.png)
-![Chat UI](./screenshots/6.png)
+<img width="2560" height="1440" alt="3" src="https://github.com/user-attachments/assets/503ff142-c4e2-43a5-a9bb-b58d47314246" />
+<img width="2560" height="1440" alt="6" src="https://github.com/user-attachments/assets/698e5e3e-95f4-4dfe-8bac-abca19b7c837" />
+<img width="2560" height="1440" alt="5" src="https://github.com/user-attachments/assets/1cd85925-d1a3-4aaf-b861-178d66f4afa6" />
+<img width="2560" height="1440" alt="4" src="https://github.com/user-attachments/assets/363b877b-4f13-449f-9882-2b50a4cbc582" />
 
 ---
 
 ### 🖼️ Image Messaging
-![Image Send](./screenshots/7.png)
-![Image Preview](./screenshots/8.png)
+<img width="2560" height="1440" alt="4" src="https://github.com/user-attachments/assets/90d7fd11-ec47-4a2a-906a-2ce47cfe47d4" />
+<img width="2560" height="1440" alt="5" src="https://github.com/user-attachments/assets/4283c901-f56f-4471-8110-e6bd9c7cdd6a" />
+<img width="2560" height="1440" alt="14" src="https://github.com/user-attachments/assets/5e575c4e-db1e-4711-8c57-27d6d066cd2e" />
 
 ---
 
 ### 🔍 Search & Requests
-![Search](./screenshots/9.png)
-![Request](./screenshots/10.png)
+<img width="2560" height="1440" alt="7" src="https://github.com/user-attachments/assets/fc5997b4-10aa-4ecf-a292-f137a3851293" />
+<img width="2560" height="1440" alt="8" src="https://github.com/user-attachments/assets/f4c26a8d-d311-4aaa-899e-cfde7dbfc32c" />
 
 ---
 
 ### 👤 Profile & Settings
-![Profile](./screenshots/11.png)
-![Change Password](./screenshots/12.png)
-![Appearance](./screenshots/13.png)
+<img width="2560" height="1440" alt="9" src="https://github.com/user-attachments/assets/db5ac8e1-c47e-4f48-8f10-836637e6bc61" />
+<img width="2560" height="1440" alt="10" src="https://github.com/user-attachments/assets/deaafab9-6f3c-460f-84be-b5ec48b0a93d" />
+<img width="2560" height="1440" alt="11" src="https://github.com/user-attachments/assets/9e7586a9-2f57-476d-8d73-ee2a98fc0176" />
+<img width="2560" height="1440" alt="12" src="https://github.com/user-attachments/assets/399cec1c-b834-48b5-bb3c-c8cca7652fc2" />
 
 ---
 
 ### 🌙 Dark Mode
-![Dark Mode](./screenshots/14.png)
-![Dark Mode Chat](./screenshots/15.png)
+<img width="2560" height="1440" alt="13" src="https://github.com/user-attachments/assets/aab52960-3d7b-414d-bd69-f72903604007" />
+<img width="2560" height="1440" alt="15" src="https://github.com/user-attachments/assets/44f3c760-3c81-443d-9e2f-85e2e3fa5607" />
 
 ---
 
 ### ⚙️ Extra UI
-![Extra](./screenshots/16.png)
+![17](https://github.com/user-attachments/assets/126c17e8-654e-48b0-9f43-00e2724af825)
 
 ---
 
