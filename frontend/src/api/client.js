@@ -5,7 +5,6 @@ const api = axios.create({
   withCredentials: true
 });
 
-// 👇 Ye add karo
 let isRefreshing = false;
 let failedQueue = [];
 
@@ -18,6 +17,12 @@ api.interceptors.response.use(
   (response) => response,
   async (error) => {
     const originalRequest = error.config;
+
+    // 👇 Auth routes ko interceptor se skip karo — AuthContext khud handle karta hai
+    const isAuthRoute = originalRequest.url?.includes('/auth/');
+    if (isAuthRoute) {
+      return Promise.reject(error);
+    }
 
     if (error.response?.status === 401 && !originalRequest._retry) {
       if (isRefreshing) {

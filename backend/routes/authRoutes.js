@@ -1,6 +1,7 @@
 import express from 'express';
 import {
   changePasswordController,
+  checkUsernameAvailabilityController,
   forgotPasswordController,
   loginController,
   logoutController,
@@ -22,12 +23,14 @@ import {
   resetPasswordValidation,
   sendOtpValidation,
   signupValidation,
+  usernameAvailabilityValidation,
   verifyOtpValidation
 } from '../validators/authValidators.js';
 
 const router = express.Router();
 
 router.post('/send-otp', authLimiter, sendOtpValidation, validateRequest, sendOtpController);
+router.get('/username-availability', usernameAvailabilityValidation, validateRequest, checkUsernameAvailabilityController);
 router.post('/verify-otp', authLimiter, verifyOtpValidation, validateRequest, verifyOtpController);
 router.post('/forgot-password', authLimiter, forgotPasswordValidation, validateRequest, forgotPasswordController);
 router.post('/reset-password', authLimiter, resetPasswordValidation, validateRequest, resetPasswordController);

@@ -11,8 +11,7 @@ const OTPVerificationPage = () => {
   const { state } = useLocation();
   const navigate = useNavigate();
   const { setSession } = useAuth();
-  const otpSent = useRef(false); // 👈 ye add karo
-
+  const otpSent = useRef(false);
 
   useEffect(() => {
     if (!state?.form?.email) {
@@ -20,11 +19,15 @@ const OTPVerificationPage = () => {
       return;
     }
 
-    api.post('/auth/send-otp', { email: state.form.email })
+    // Guard against double-invocation in React Strict Mode
+    if (otpSent.current) return;
+    otpSent.current = true;
+
+    api
+      .post('/auth/send-otp', { email: state.form.email })
       .then(() => setStatus(`OTP sent to ${state.form.email}`))
       .catch((err) => setError(err.response?.data?.message || 'Unable to send OTP.'));
-
-  }, []); // 👈 empty dependency array — sirf ek baar chalega
+  }, [navigate, state]);
 
   const handleSubmit = async (event) => {
     event.preventDefault();
@@ -62,7 +65,9 @@ const OTPVerificationPage = () => {
             onChange={(event) => setOtp(event.target.value.replace(/\D/g, '').slice(0, 6))}
             required
           />
-          <button type="submit" disabled={submitting}>{submitting ? 'Creating account...' : 'Verify & continue'}</button>
+          <button type="submit" disabled={submitting}>
+            {submitting ? 'Creating account...' : 'Verify & continue'}
+          </button>
         </form>
         {error && <p className="error-text">{error}</p>}
       </div>

@@ -1,5 +1,6 @@
 import { memo, useEffect, useRef, useState } from 'react';
 import { formatTime } from '../utils/formatters';
+import { getUserAvatar } from '../utils/avatar';
 
 const ChatListItem = memo(({ chat, active, unreadCount = 0, onSelect, onViewProfile, onRemoveFriend }) => {
   const [menuOpen, setMenuOpen] = useState(false);
@@ -20,7 +21,10 @@ const ChatListItem = memo(({ chat, active, unreadCount = 0, onSelect, onViewProf
     <article className={`chat-list-item-card ${active ? 'active' : ''}`}>
       <button className="chat-list-item" onClick={() => onSelect(chat)} type="button">
         <div className="avatar-wrap">
-          <img src={chat.peer?.profilePic || 'https://placehold.co/56x56'} alt={chat.peer?.username || 'User'} />
+          <img
+            src={getUserAvatar({ profilePic: chat.peer?.profilePic, fullName: chat.peer?.fullName, username: chat.peer?.username })}
+            alt={chat.peer?.username || 'User'}
+          />
           <span className={`presence-dot ${chat.peer?.isOnline ? 'online' : ''}`} />
         </div>
         <div className="chat-list-copy">
@@ -59,7 +63,16 @@ const ChatListItem = memo(({ chat, active, unreadCount = 0, onSelect, onViewProf
                 onViewProfile(chat);
               }}
             >
-              View Profile
+              <button
+                type="button"
+                className="ghost menu-item"
+                onClick={() => {
+                  setMenuOpen(false);
+                  onViewProfile(chat);
+                }}
+              >
+                View Profile
+              </button>
             </button>
             <button
               type="button"

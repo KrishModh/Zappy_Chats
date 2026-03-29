@@ -4,12 +4,14 @@ import api from '../api/client';
 import { useAuth } from '../context/AuthContext';
 import useDebounce from '../hooks/useDebounce';
 import { getSocket } from '../socket/socket';
+import { getUserAvatar } from '../utils/avatar';
 import RequestDropdown from './RequestDropdown';
 
 const Navbar = ({ requests, onRespond }) => {
   const [query, setQuery] = useState('');
   const [results, setResults] = useState([]);
   const [requestedIds, setRequestedIds] = useState(() => new Set());
+  const [followingIds, setFollowingIds] = useState(() => new Set());
   const [isSearching, setIsSearching] = useState(false);
   const [showRequests, setShowRequests] = useState(false);
   const [menuOpen, setMenuOpen] = useState(false);
@@ -37,6 +39,31 @@ const Navbar = ({ requests, onRespond }) => {
     document.addEventListener('mousedown', handleOutsideClick);
     return () => document.removeEventListener('mousedown', handleOutsideClick);
   }, []);
+
+  // 👇 Existing friends/chats load karo — inhe "Following" dikhana hai
+  useEffect(() => {
+    if (!isAuthenticated) {
+      setFollowingIds(new Set());
+      return;
+    }
+
+    let active = true;
+    api
+      .get('/chats')
+      .then(({ data }) => {
+        if (!active) return;
+        const ids = new Set(data.map((chat) => chat.peer?._id).filter(Boolean));
+        setFollowingIds(ids);
+      })
+      .catch(() => {
+        if (!active) return;
+        setFollowingIds(new Set());
+      });
+
+    return () => {
+      active = false;
+    };
+  }, [isAuthenticated]);
 
   useEffect(() => {
     if (!isAuthenticated || !debouncedQuery.trim()) {
@@ -135,22 +162,28 @@ const Navbar = ({ requests, onRespond }) => {
               <div className="dropdown-card search-dropdown">
                 {isSearching && <div className="search-status">Searching...</div>}
                 {!isSearching && results.map((result) => {
+                  const isFollowing = followingIds.has(result._id);
                   const isRequested = requestedIds.has(result._id);
+                  const isDisabled = isFollowing || isRequested;
+                  const buttonLabel = isFollowing ? 'Following' : isRequested ? 'Requested' : 'Send Request';
 
                   return (
                     <article key={result._id} className="search-result-card">
-                      <img src={result.profilePic || 'https://placehold.co/48x48'} alt={result.username} />
+                      <img
+                        src={getUserAvatar({ profilePic: result.profilePic, fullName: result.fullName, username: result.username })}
+                        alt={result.username}
+                      />
                       <div className="search-result-copy">
                         <strong>@{result.username}</strong>
                         <p>{result.fullName}</p>
                       </div>
                       <button
                         type="button"
-                        className={`search-request-button ${isRequested ? 'requested' : ''}`}
-                        onClick={() => sendRequest(result._id)}
-                        disabled={isRequested}
+                        className={`search-request-button ${isFollowing ? 'following' : ''} ${isRequested ? 'requested' : ''}`}
+                        onClick={() => { if (!isDisabled) sendRequest(result._id); }}
+                        disabled={isDisabled}
                       >
-                        {isRequested ? 'Requested' : 'Send Request'}
+                        {buttonLabel}
                       </button>
                     </article>
                   );
@@ -174,7 +207,10 @@ const Navbar = ({ requests, onRespond }) => {
           </div>
           <div className="profile-menu-anchor">
             <button type="button" className="profile-pill" onClick={() => setMenuOpen((open) => !open)}>
-              {user?.profilePic ? <img src={user.profilePic} alt={user.username} /> : <span>{initials}</span>}
+              <img
+                src={getUserAvatar({ profilePic: user?.profilePic, fullName: user?.fullName, username: user?.username })}
+                alt={user?.username || initials}
+              />
             </button>
             {menuOpen && (
               <div className="dropdown-card profile-dropdown menu-list">

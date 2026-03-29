@@ -14,12 +14,16 @@ const fileToBase64 = (file) =>
     reader.readAsDataURL(file);
   });
 
-const sortChats = (items) => [...items].sort((a, b) => new Date(b.lastMessageAt) - new Date(a.lastMessageAt));
+const sortChats = (items) =>
+  [...items].sort((a, b) => new Date(b.lastMessageAt) - new Date(a.lastMessageAt));
 
 const upsertMessage = (messages, message) => {
   const existingIndex = messages.findIndex(
-    (item) => item._id === message._id || (item.clientMessageId && item.clientMessageId === message.clientMessageId)
+    (item) =>
+      item._id === message._id ||
+      (item.clientMessageId && item.clientMessageId === message.clientMessageId)
   );
+
   if (existingIndex === -1) return [...messages, message];
   return messages.map((item, index) => (index === existingIndex ? { ...item, ...message } : item));
 };
@@ -40,7 +44,10 @@ const ChatDashboard = ({ refreshKey }) => {
   const [feedbackMessage, setFeedbackMessage] = useState('');
   const [unreadCounts, setUnreadCounts] = useState({});
 
-  const activeChat = useMemo(() => chats.find((chat) => chat._id === activeChatId) || null, [activeChatId, chats]);
+  const activeChat = useMemo(
+    () => chats.find((chat) => chat._id === activeChatId) || null,
+    [activeChatId, chats]
+  );
   const activeMessages = messagesByChat[activeChatId] || [];
   const onlineCount = useMemo(() => chats.filter((chat) => chat.peer?.isOnline).length, [chats]);
 
@@ -94,48 +101,54 @@ const ChatDashboard = ({ refreshKey }) => {
     const socket = getSocket();
     if (!socket) return undefined;
 
-const handleMessage = (message) => {
-  const messageSenderId = message.sender?.toString?.() || message.sender;
+    const handleMessage = (message) => {
+      const messageSenderId = message.sender?.toString?.() || message.sender;
 
-  setMessagesByChat((current) => ({
-    ...current,
-    [message.chatId]: upsertMessage(current[message.chatId] || [], message)
-  }));
+      setMessagesByChat((current) => ({
+        ...current,
+        [message.chatId]: upsertMessage(current[message.chatId] || [], message),
+      }));
 
-  // 👇 Unread count — agar dusre ka message hai aur chat open nahi hai
-  if (messageSenderId !== user?._id && !(activeChatId === message.chatId && activePanel === 'chat')) {
-    setUnreadCounts((current) => ({
-      ...current,
-      [message.chatId]: (current[message.chatId] || 0) + 1
-    }));
-  }
+      // Increment unread count if message is from someone else and chat isn't currently open
+      if (
+        messageSenderId !== user?._id &&
+        !(activeChatId === message.chatId && activePanel === 'chat')
+      ) {
+        setUnreadCounts((current) => ({
+          ...current,
+          [message.chatId]: (current[message.chatId] || 0) + 1,
+        }));
+      }
 
-  setTypingState((current) =>
-    current?.chatId === message.chatId && current?.senderId === (message.sender?.toString?.() || message.sender)
-      ? null
-      : current
-  );
+      // Clear typing indicator for the sender
+      setTypingState((current) =>
+        current?.chatId === message.chatId &&
+        current?.senderId === (message.sender?.toString?.() || message.sender)
+          ? null
+          : current
+      );
 
-  setChats((current) =>
-    sortChats(
-      current.map((chat) =>
-        chat._id === message.chatId
-          ? { ...chat, lastMessage: message.message || 'Image', lastMessageAt: message.timestamp }
-          : chat
-      )
-    )
-  );
+      // Update chat list preview + sort
+      setChats((current) =>
+        sortChats(
+          current.map((chat) =>
+            chat._id === message.chatId
+              ? { ...chat, lastMessage: message.message || 'Image', lastMessageAt: message.timestamp }
+              : chat
+          )
+        )
+      );
 
-  // Agar ye chat abhi open hai toh read mark karo
-  setActiveChatId((currentActiveChatId) => {
-    if (currentActiveChatId === message.chatId) {
-      getSocket()?.emit('chat:read', message.chatId);
-    }
-    return currentActiveChatId;
-  });
-};
+      // Mark as read if this chat is currently active
+      setActiveChatId((currentActiveChatId) => {
+        if (currentActiveChatId === message.chatId) {
+          getSocket()?.emit('chat:read', message.chatId);
+        }
+        return currentActiveChatId;
+      });
+    };
 
-    // ✅ Blue tick system
+    // Blue tick / read-receipt status updates
     const handleMessageStatus = ({ updates }) => {
       if (!updates?.length) return;
       setMessagesByChat((current) => {
@@ -152,11 +165,10 @@ const handleMessage = (message) => {
       });
     };
 
-    // ✅ Edit/delete message update
     const handleMessageUpdate = ({ message, lastMessagePreview }) => {
       setMessagesByChat((current) => ({
         ...current,
-        [message.chatId]: updateExistingMessage(current[message.chatId] || [], message)
+        [message.chatId]: updateExistingMessage(current[message.chatId] || [], message),
       }));
       setChats((current) =>
         current.map((chat) =>
@@ -239,34 +251,33 @@ const handleMessage = (message) => {
     };
   }, [activeChatId, activePanel, user?._id]);
 
-const handleSendMessage = useCallback(async (chat, { text, imageFile }) => {
-  const socket = getSocket();
-  if (!socket) return;
+  const handleSendMessage = useCallback(async (chat, { text, imageFile }) => {
+    const socket = getSocket();
+    if (!socket) return;
 
-  const clientMessageId = `${chat._id}-${Date.now()}-${Math.random().toString(36).slice(2, 9)}`;
-  const imageData = imageFile ? await fileToBase64(imageFile) : '';
+    const clientMessageId = `${chat._id}-${Date.now()}-${Math.random().toString(36).slice(2, 9)}`;
+    const imageData = imageFile ? await fileToBase64(imageFile) : '';
 
-  await new Promise((resolve) => {
-    // 👇 30 second timeout — agar callback nahi aaya toh resolve kar do
-    const timeout = window.setTimeout(() => resolve({ ok: false, timeout: true }), 30000);
+    await new Promise((resolve) => {
+      // 30-second timeout fallback in case the server never acks
+      const timeout = window.setTimeout(() => resolve({ ok: false, timeout: true }), 30000);
 
-    socket.emit(
-      'message:send',
-      { chatId: chat._id, message: text, imageData, clientMessageId },
-      (response) => {
-        window.clearTimeout(timeout);
-        resolve(response);
-      }
-    );
-  });
-}, []);
-
+      socket.emit(
+        'message:send',
+        { chatId: chat._id, message: text, imageData, clientMessageId },
+        (response) => {
+          window.clearTimeout(timeout);
+          resolve(response);
+        }
+      );
+    });
+  }, []);
 
   const handleEditMessage = useCallback(async (messageId, text) => {
     const { data } = await api.patch(`/messages/${messageId}`, { message: text });
     setMessagesByChat((current) => ({
       ...current,
-      [data.message.chatId]: upsertMessage(current[data.message.chatId] || [], data.message)
+      [data.message.chatId]: upsertMessage(current[data.message.chatId] || [], data.message),
     }));
     setChats((current) =>
       current.map((chat) =>
@@ -284,7 +295,7 @@ const handleSendMessage = useCallback(async (chat, { text, imageFile }) => {
     if (scope === 'me') {
       setMessagesByChat((current) => ({
         ...current,
-        [chatId]: (current[chatId] || []).filter((message) => message._id !== messageId)
+        [chatId]: (current[chatId] || []).filter((message) => message._id !== messageId),
       }));
       setChats((current) =>
         current.map((chat) =>
@@ -298,7 +309,7 @@ const handleSendMessage = useCallback(async (chat, { text, imageFile }) => {
 
     setMessagesByChat((current) => ({
       ...current,
-      [data.message.chatId]: upsertMessage(current[data.message.chatId] || [], data.message)
+      [data.message.chatId]: upsertMessage(current[data.message.chatId] || [], data.message),
     }));
     setChats((current) =>
       current.map((chat) =>
@@ -322,7 +333,11 @@ const handleSendMessage = useCallback(async (chat, { text, imageFile }) => {
           <div className="sidebar-header sidebar-header-stack">
             <div>
               <h2>Chats</h2>
-              <p>{user?.fullName ? `Welcome back, ${user.fullName.split(' ')[0]}.` : 'Your conversations and live presence.'}</p>
+              <p>
+                {user?.fullName
+                  ? `Welcome back, ${user.fullName.split(' ')[0]}.`
+                  : 'Your conversations and live presence.'}
+              </p>
             </div>
             <div className="sidebar-insights" aria-label="Chat summary">
               <span>{chats.length} chats</span>
@@ -332,7 +347,9 @@ const handleSendMessage = useCallback(async (chat, { text, imageFile }) => {
           </div>
           <div className="chat-list-scroll">
             {chats.length === 0 ? (
-              <div className="empty-state">No chats yet. Search for users and send a request to begin.</div>
+              <div className="empty-state">
+                No chats yet. Search for users and send a request to begin.
+              </div>
             ) : (
               chats.map((chat) => (
                 <ChatListItem

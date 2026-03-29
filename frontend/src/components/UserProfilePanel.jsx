@@ -1,3 +1,5 @@
+import { getUserAvatar } from '../utils/avatar';
+
 const UserProfilePanel = ({ chat, onBack }) => {
   const peer = chat?.peer;
 
@@ -21,7 +23,11 @@ const UserProfilePanel = ({ chat, onBack }) => {
       </header>
 
       <div className="user-profile-content">
-        <img className="user-profile-avatar" src={peer.profilePic || 'https://placehold.co/160x160'} alt={peer.username} />
+        <img
+          className="user-profile-avatar"
+          src={getUserAvatar({ profilePic: peer.profilePic, fullName: peer.fullName, username: peer.username })}
+          alt={peer.username}
+        />
         <h2>{peer.fullName || peer.username}</h2>
         <p className="user-profile-username">@{peer.username}</p>
       </div>

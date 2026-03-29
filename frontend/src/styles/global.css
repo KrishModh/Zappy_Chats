@@ -157,18 +157,19 @@ img {
   flex-shrink: 0;
 }
 
-.brand-wrap {
+.brand-wrap,
+.nav-actions {
   display: flex;
   align-items: center;
   gap: 12px;
+}
+
+.brand-wrap {
   flex: 1 1 520px;
   min-width: 0;
 }
 
 .nav-actions {
-  display: flex;
-  align-items: center;
-  gap: 12px;
   flex: 0 0 auto;
 }
 
@@ -471,12 +472,23 @@ img {
   background: linear-gradient(135deg, var(--accent), var(--accent-strong));
 }
 
+.search-request-button.following {
+  background: color-mix(in srgb, var(--accent) 20%, var(--surface-3));
+  color: color-mix(in srgb, var(--accent) 76%, var(--text));
+  border: 1px solid color-mix(in srgb, var(--accent) 28%, transparent);
+}
+
 .search-request-button.requested,
 .search-request-button:disabled {
   background: var(--surface-3);
   color: var(--muted);
   cursor: not-allowed;
   transform: none;
+}
+
+.search-request-button.following:disabled {
+  background: color-mix(in srgb, var(--accent) 20%, var(--surface-3));
+  color: color-mix(in srgb, var(--accent) 76%, var(--text));
 }
 
 .dashboard-shell,
@@ -516,7 +528,9 @@ img {
   flex-direction: column;
   border-radius: 32px 0 0 32px;
   overflow: hidden;
-  background: linear-gradient(180deg, color-mix(in srgb, var(--surface-2) 92%, transparent), color-mix(in srgb, var(--surface) 90%, transparent));
+  background: linear-gradient(180deg,
+      color-mix(in srgb, var(--surface-2) 92%, transparent),
+      color-mix(in srgb, var(--surface) 90%, transparent));
 }
 
 .chat-stage,
@@ -806,6 +820,28 @@ img {
   color: rgba(255, 255, 255, 0.78);
 }
 
+/* TickIcon — CSS specificity fix */
+.tick-icon {
+  display: inline !important;
+  font-size: 0.75rem;
+}
+.tick-read {
+  color: #53bdeb !important;
+}
+.tick-delivered,
+.tick-sent {
+  color: #8696a0 !important;
+}
+
+/* Mine bubble ke andar bhi override na ho */
+.message-bubble.mine .tick-read {
+  color: #53bdeb !important;
+}
+.message-bubble.mine .tick-delivered,
+.message-bubble.mine .tick-sent {
+  color: rgba(255, 255, 255, 0.78) !important;
+}
+
 .message-meta-line {
   display: flex !important;
   justify-content: flex-end;
@@ -820,16 +856,22 @@ img {
 
 .message-menu-button {
   position: absolute;
-  top: 6px;
+  top: 8px;
   right: 8px;
+  width: 34px;
+  height: 34px;
   border: none;
-  border-radius: 12px;
-  background: transparent;
-  color: var(--muted);
-  font-size: 1rem;
-  padding: 4px 8px;
+  border-radius: 999px;
+  background: color-mix(in srgb, var(--surface) 72%, transparent);
+  color: color-mix(in srgb, var(--text) 80%, var(--muted));
+  font-size: 1.2rem;
+  font-weight: 700;
+  line-height: 1;
+  display: inline-grid;
+  place-items: center;
   opacity: 0;
   pointer-events: none;
+  z-index: 2;
 }
 
 .message-bubble:hover .message-menu-button,
@@ -839,13 +881,35 @@ img {
 }
 
 .message-menu-button:hover {
-  background: color-mix(in srgb, var(--surface) 60%, transparent);
-  color: var(--text);
+  background: color-mix(in srgb, var(--accent) 16%, var(--surface-2));
+  color: var(--text-strong);
+  transform: scale(1.06);
 }
 
 .message-edit-box {
   display: grid;
-  gap: 8px;
+  gap: 10px;
+  padding: 12px;
+  border-radius: 16px;
+  background: color-mix(in srgb, var(--surface) 75%, transparent);
+  box-shadow: inset 0 0 0 1px color-mix(in srgb, var(--accent) 16%, transparent);
+  animation: fadeSwap 180ms ease;
+}
+
+.message-edit-label {
+  font-size: 0.76rem;
+  color: color-mix(in srgb, var(--accent) 85%, var(--text));
+  font-weight: 600;
+  letter-spacing: 0.01em;
+}
+
+.message-edit-input {
+  border: 1px solid color-mix(in srgb, var(--border) 70%, transparent);
+  border-radius: 14px;
+  padding: 11px 12px;
+  background: color-mix(in srgb, var(--surface-2) 85%, transparent);
+  color: inherit;
+  box-shadow: var(--shadow-soft);
 }
 
 .message-edit-actions {
@@ -857,27 +921,43 @@ img {
 .message-edit-actions button {
   border: none;
   border-radius: 12px;
-  padding: 8px 12px;
+  padding: 8px 14px;
+}
+
+.edit-save-button {
+  background: linear-gradient(135deg, var(--accent), var(--accent-strong));
+  color: white;
+}
+
+.message-bubble.editing {
+  transform: translateY(-1px);
 }
 
 .chat-image-shell {
-  display: grid;
-  gap: 8px;
-  margin-bottom: 8px;
+  display: block;
+  margin-bottom: 4px;
+  max-width: 100%;
 }
 
 .chat-image-button {
   position: relative;
   padding: 0;
   border: none;
-  border-radius: 18px;
-  overflow: hidden;
+  border-radius: 12px;
+  overflow: visible; /* 👈 hidden se visible karo */
   background: transparent;
-  box-shadow: var(--shadow-soft);
+  display: block;
+  width: fit-content;
 }
 
 .chat-image-button.loaded {
   cursor: zoom-in;
+}
+
+.chat-image-frame {
+  display: block;
+  position: relative;
+  width: 100%;
 }
 
 .chat-image-overlay {
@@ -885,30 +965,88 @@ img {
   inset: 0;
   display: grid;
   place-items: center;
-  background: rgba(15, 23, 42, 0.42);
+  background: rgba(15, 23, 42, 0.34);
   color: white;
   font-weight: 600;
+  border-radius: 14px;
+  backdrop-filter: blur(2px);
 }
 
 .chat-image-download {
+    position: absolute;
+  bottom: 10px;
+  left: 50%;
+  transform: translateX(-50%);
+  display: none;
+  align-items: center;
+  gap: 6px;
+  padding: 6px 12px;
+  border-radius: 999px;
+  background: rgba(15, 23, 42, 0.65);
+  color: #f8fafc;
+  font-size: 0.78rem;
+  font-weight: 600;
+  text-decoration: none;
+  backdrop-filter: blur(6px);
+  white-space: nowrap;
+  z-index: 3;
+}
+
+.chat-image-shell:hover .chat-image-download {
+  display: inline-flex;
+  align-items: center;
+  gap: 6px;
   width: fit-content;
-  border: none;
   border-radius: 12px;
-  padding: 8px 12px;
+  padding: 6px 10px;
   background: color-mix(in srgb, var(--surface) 65%, transparent);
   color: var(--text);
+  font-size: 0.8rem;
+  text-decoration: none;
 }
 
 .message-image {
-  width: 240px;
-  max-height: 260px;
-  border-radius: 18px;
-  object-fit: cover;
+  width: 280px;
+  height: auto;
+  max-height: 360px;
+  object-fit: contain;
 }
 
-.message-image--blurred {
-  filter: blur(2px);
+.message-image-preview {
+  width: 280px;
+  height: auto;
+  max-height: 360px;
+  object-fit: contain;
+}
+
+.message-image-main {
+  position: absolute;
+  inset: 0;
+  width: 100%;
+  height: 100%;
+  opacity: 0;
+  transition: opacity 240ms ease;
+}
+
+.message-image-main.ready {
+  opacity: 1;
+}
+
+.chat-image-button.loaded:hover .message-image {
   transform: scale(1.03);
+}
+
+.chat-image-meta {
+  position: absolute;
+  right: 14px;
+  bottom: 12px;
+  padding: 4px 8px;
+  border-radius: 999px;
+  background: rgba(15, 23, 42, 0.55);
+  color: #f8fafc;
+  font-size: 0.7rem;
+  line-height: 1.1;
+  letter-spacing: 0.02em;
 }
 
 .image-viewer-overlay {
@@ -919,6 +1057,7 @@ img {
   place-items: center;
   padding: 20px;
   background: rgba(0, 0, 0, 0.88);
+  animation: fadeSwap 180ms ease;
 }
 
 .image-viewer-modal {
@@ -930,6 +1069,7 @@ img {
   border-radius: 28px;
   background: rgba(15, 23, 42, 0.42);
   backdrop-filter: blur(20px);
+  animation: riseIn 220ms ease;
 }
 
 .image-viewer-toolbar {
@@ -942,6 +1082,13 @@ img {
 .image-viewer-toolbar__actions {
   display: flex;
   gap: 10px;
+}
+
+.image-viewer-close {
+  width: 40px;
+  height: 40px;
+  padding: 0;
+  border-radius: 999px;
 }
 
 .image-viewer-stage {
@@ -983,6 +1130,66 @@ img {
   box-shadow: var(--shadow);
   animation: riseIn 180ms ease;
   backdrop-filter: blur(18px);
+}
+
+.edit-modal-overlay {
+  z-index: 65;
+}
+
+.edit-message-modal {
+  width: min(100%, 520px);
+  border-radius: 20px;
+  padding: 22px;
+  animation: riseIn 200ms ease;
+}
+
+.edit-message-original {
+  margin-top: 6px !important;
+  font-size: 0.82rem;
+  color: var(--muted);
+  display: -webkit-box;
+  -webkit-line-clamp: 2;
+  line-clamp: 2;
+  -webkit-box-orient: vertical;
+  overflow: hidden;
+}
+
+.edit-message-body {
+  display: grid;
+  gap: 8px;
+  margin-top: 14px;
+}
+
+.edit-message-textarea {
+  width: 100%;
+  resize: vertical;
+  min-height: 110px;
+  border: 1px solid color-mix(in srgb, var(--border) 75%, transparent);
+  border-radius: 14px;
+  padding: 12px 14px;
+  font: inherit;
+  color: inherit;
+  background: color-mix(in srgb, var(--surface-2) 90%, transparent);
+  box-shadow: var(--shadow-soft);
+  outline: none;
+}
+
+.edit-message-textarea:focus {
+  border-color: color-mix(in srgb, var(--accent) 40%, var(--border));
+  box-shadow: var(--input-shadow);
+}
+
+.edit-message-count {
+  justify-self: end;
+  color: var(--muted);
+  font-size: 0.76rem;
+}
+
+.edit-message-actions {
+  margin-top: 14px;
+  display: flex;
+  justify-content: flex-end;
+  gap: 10px;
 }
 
 .message-modal__header h3 {
@@ -1114,12 +1321,10 @@ img {
 .auth-shell {
   display: grid;
   place-items: center;
+  align-items: flex-start;
   min-height: 100%;
   padding-bottom: 20px;
   overflow: auto;
-  /* ye pehle se hai ✅ */
-  align-items: flex-start;
-  /* 👈 ye add karo */
 }
 
 .auth-card {
@@ -1140,6 +1345,38 @@ img {
   display: grid;
   gap: 14px;
   margin-top: 20px;
+}
+
+.form-field {
+  display: grid;
+  gap: 8px;
+  align-content: start;
+}
+
+.field-hint {
+  color: var(--muted);
+  font-size: 0.8rem;
+  line-height: 1.35;
+}
+
+.username-status {
+  font-size: 0.8rem;
+  line-height: 1.3;
+}
+
+.username-status.available {
+  color: #22c55e;
+}
+
+.username-status.checking,
+.username-status.idle {
+  color: var(--muted);
+}
+
+.username-status.taken,
+.username-status.invalid,
+.username-status.error {
+  color: #ef4444;
 }
 
 .two-columns {
@@ -1238,7 +1475,16 @@ img {
   display: grid;
   align-content: start;
   gap: 16px;
-  background: linear-gradient(180deg, color-mix(in srgb, var(--surface) 98%, transparent), color-mix(in srgb, var(--surface-2) 86%, transparent));
+  background: linear-gradient(180deg,
+      color-mix(in srgb, var(--surface) 98%, transparent),
+      color-mix(in srgb, var(--surface-2) 86%, transparent));
+}
+
+.search-request-button {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  font-weight: 700;
 }
 
 .back-home-button {
@@ -1307,6 +1553,18 @@ img {
   }
 }
 
+@keyframes fadeSwap {
+  from {
+    opacity: 0;
+    transform: translateY(4px);
+  }
+
+  to {
+    opacity: 1;
+    transform: translateY(0);
+  }
+}
+
 @media (max-width: 1024px) {
   .app-shell {
     padding: 16px;
@@ -1357,15 +1615,13 @@ img {
 }
 
 @media (max-width: 768px) {
-
   body {
     overflow: hidden auto;
-    /* 👈 ye change karo */
   }
 
   .app-shell {
     padding: 0;
-    height: 100dvh
+    height: 100dvh;
   }
 
   .topbar {
@@ -1418,7 +1674,7 @@ img {
     width: calc(100vw - 24px);
   }
 
-  /* ✅ Profile dropdown mobile fix — screen ke andar rahega */
+  /* Profile dropdown: fixed positioning keeps it on-screen on mobile */
   .profile-dropdown {
     position: fixed;
     top: auto;
@@ -1449,12 +1705,47 @@ img {
     max-width: 92%;
   }
 
+  .chat-image-shell {
+    max-width: 100%;
+  }
+
+  .message-image,
+  .message-image-preview {
+    width: 220px;
+    max-height: 300px;  }
+
+  .message-menu-button {
+    opacity: 1;
+    pointer-events: auto;
+    width: 22px;
+    height: 22px;
+    background: color-mix(in srgb, var(--surface) 33%, transparent);
+
+  }
+
+    .chat-image-download {
+    display: inline-flex !important;
+  }
+
+  .edit-message-modal {
+    width: min(100%, calc(100vw - 24px));
+    padding: 18px;
+  }
+
+  .edit-message-actions {
+    display: grid;
+    grid-template-columns: 1fr 1fr;
+  }
+
+  .edit-message-actions button {
+    width: 100%;
+  }
+
   .message-composer {
-    padding: 14px 16px env(safe-area-inset-bottom, 16px);
-    position: sticky;
-    bottom: 0;
     gap: 10px;
     padding: 14px 16px calc(18px + env(safe-area-inset-bottom, 0px));
+    position: sticky;
+    bottom: 0;
   }
 
   .message-composer>button {

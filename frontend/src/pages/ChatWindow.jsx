@@ -1,15 +1,26 @@
 import { useEffect, useMemo, useRef, useState } from 'react';
+import EditMessageModal from '../components/EditMessageModal';
 import ImageViewerModal from '../components/ImageViewerModal';
 import MessageActionModal from '../components/MessageActionModal';
 import MessageBubble from '../components/MessageBubble';
 import { getSocket } from '../socket/socket';
+import { getUserAvatar } from '../utils/avatar';
 import { formatDateSeparator, formatLastSeen } from '../utils/formatters';
 
 const TYPING_STOP_DELAY = 1500;
 const MESSAGE_ACTION_TIME_LIMIT = 5 * 60 * 1000;
 const MESSAGE_ACTION_TIME_LIMIT_TEXT = 'You can only edit or delete messages within 5 minutes of sending.';
 
-const ChatWindow = ({ chat, currentUserId, onBack, messages, onSendMessage, onEditMessage, onDeleteMessage, typingState }) => {
+const ChatWindow = ({
+  chat,
+  currentUserId,
+  onBack,
+  messages,
+  onSendMessage,
+  onEditMessage,
+  onDeleteMessage,
+  typingState,
+}) => {
   const [text, setText] = useState('');
   const [imageFile, setImageFile] = useState(null);
   const [sending, setSending] = useState(false);
@@ -24,36 +35,60 @@ const ChatWindow = ({ chat, currentUserId, onBack, messages, onSendMessage, onEd
   const socket = getSocket();
 
   useEffect(() => {
+    if (!chat?._id || !socket) return;
+    socket.emit('chat:read', chat._id);
+  }, [chat?._id, messages.length, socket]);
+
+  useEffect(() => {
     messageEndRef.current?.scrollIntoView({ behavior: 'smooth' });
   }, [messages, typingState]);
 
   const peer = chat?.peer;
-  const isPeerTyping = typingState?.chatId === chat?._id && typingState?.isTyping && typingState?.senderId !== currentUserId;
+  const isPeerTyping =
+    typingState?.chatId === chat?._id &&
+    typingState?.isTyping &&
+    typingState?.senderId !== currentUserId;
 
-  const previewUrl = useMemo(() => (imageFile ? URL.createObjectURL(imageFile) : ''), [imageFile]);
+  const previewUrl = useMemo(
+    () => (imageFile ? URL.createObjectURL(imageFile) : ''),
+    [imageFile]
+  );
+
   const groupedMessages = useMemo(
     () =>
       messages.reduce((items, message, index) => {
         const currentDate = new Date(message.timestamp).toDateString();
-        const previousDate = index > 0 ? new Date(messages[index - 1].timestamp).toDateString() : null;
+        const previousDate =
+          index > 0 ? new Date(messages[index - 1].timestamp).toDateString() : null;
         if (currentDate !== previousDate) {
-          items.push({ type: 'separator', value: formatDateSeparator(message.timestamp), key: `separator-${currentDate}` });
+          items.push({
+            type: 'separator',
+            value: formatDateSeparator(message.timestamp),
+            key: `separator-${currentDate}`,
+          });
         }
-        items.push({ type: 'message', value: message, key: message._id || message.clientMessageId || `${message.timestamp}-${index}` });
+        items.push({
+          type: 'message',
+          value: message,
+          key: message._id || message.clientMessageId || `${message.timestamp}-${index}`,
+        });
         return items;
       }, []),
     [messages]
   );
 
-  useEffect(() => () => {
-    if (previewUrl) URL.revokeObjectURL(previewUrl);
-  }, [previewUrl]);
+  useEffect(
+    () => () => {
+      if (previewUrl) URL.revokeObjectURL(previewUrl);
+    },
+    [previewUrl]
+  );
 
   const emitTyping = (isTyping) => {
     if (!socket || !chat?._id || !currentUserId) return;
     socket.emit(isTyping ? 'typing:start' : 'typing:stop', {
       chatId: chat._id,
-      senderId: currentUserId
+      senderId: currentUserId,
     });
     isTypingRef.current = isTyping;
   };
@@ -83,10 +118,7 @@ const ChatWindow = ({ chat, currentUserId, onBack, messages, onSendMessage, onEd
   }, [chat?._id]);
 
   useEffect(() => {
-    if (!editingMessageId) {
-      return;
-    }
-
+    if (!editingMessageId) return;
     const targetMessage = messages.find((message) => message._id === editingMessageId);
     if (!targetMessage) {
       setEditingMessageId('');
@@ -94,39 +126,39 @@ const ChatWindow = ({ chat, currentUserId, onBack, messages, onSendMessage, onEd
     }
   }, [editingMessageId, messages]);
 
+  const editingMessage = useMemo(
+    () => messages.find((message) => message._id === editingMessageId) || null,
+    [editingMessageId, messages]
+  );
+
   const openNotice = (message) => {
     setActionMessage(null);
     setNoticeMessage(message);
   };
 
-  const withinEditWindow = (message) => Date.now() - new Date(message.timestamp).getTime() <= MESSAGE_ACTION_TIME_LIMIT;
+  const withinEditWindow = (message) =>
+    Date.now() - new Date(message.timestamp).getTime() <= MESSAGE_ACTION_TIME_LIMIT;
 
   const startEditing = (message) => {
     if (!message.message || message.isDeleted) {
       openNotice('Only non-deleted text messages can be edited.');
       return;
     }
-
     if (!withinEditWindow(message)) {
       openNotice(MESSAGE_ACTION_TIME_LIMIT_TEXT);
       return;
     }
-
     setActionMessage(null);
     setEditingMessageId(message._id);
     setEditingValue(message.message);
   };
 
   const handleDeleteAction = async (scope) => {
-    if (!actionMessage) {
-      return;
-    }
-
+    if (!actionMessage) return;
     if (scope === 'everyone' && !withinEditWindow(actionMessage)) {
       openNotice(MESSAGE_ACTION_TIME_LIMIT_TEXT);
       return;
     }
-
     try {
       await onDeleteMessage({ messageId: actionMessage._id, scope, chatId: actionMessage.chatId });
       setActionMessage(null);
@@ -140,22 +172,17 @@ const ChatWindow = ({ chat, currentUserId, onBack, messages, onSendMessage, onEd
   };
 
   const handleSaveEdit = async () => {
-    if (!editingMessageId) {
-      return;
-    }
-
+    if (!editingMessageId) return;
     const targetMessage = messages.find((message) => message._id === editingMessageId);
     if (!targetMessage) {
       setEditingMessageId('');
       setEditingValue('');
       return;
     }
-
     if (!withinEditWindow(targetMessage)) {
       openNotice(MESSAGE_ACTION_TIME_LIMIT_TEXT);
       return;
     }
-
     try {
       await onEditMessage(editingMessageId, editingValue);
       setEditingMessageId('');
@@ -179,7 +206,7 @@ const ChatWindow = ({ chat, currentUserId, onBack, messages, onSendMessage, onEd
     } catch (error) {
       openNotice(error?.message || 'Unable to send message. Please try again.');
     } finally {
-      setSending(false); // 👈 hamesha reset hoga — success ya fail dono mein
+      setSending(false);
     }
   };
 
@@ -194,16 +221,19 @@ const ChatWindow = ({ chat, currentUserId, onBack, messages, onSendMessage, onEd
     );
   }
 
+  const isMine = (message) =>
+    message.sender?.toString?.() === currentUserId || message.sender === currentUserId;
+
   const actionOptions = actionMessage
     ? [
-      ...(actionMessage.sender?.toString?.() === currentUserId || actionMessage.sender === currentUserId
+      ...(isMine(actionMessage)
         ? [
           { label: 'Delete for everyone', tone: 'danger', onClick: () => handleDeleteAction('everyone') },
           { label: 'Delete for me', tone: 'danger', onClick: () => handleDeleteAction('me') },
-          { label: 'Edit message', onClick: () => startEditing(actionMessage) }
+          { label: 'Edit message', onClick: () => startEditing(actionMessage) },
         ]
         : [{ label: 'Delete for me', tone: 'danger', onClick: () => handleDeleteAction('me') }]),
-      { label: 'Cancel', onClick: () => setActionMessage(null) }
+      { label: 'Cancel', onClick: () => setActionMessage(null) },
     ]
     : [];
 
@@ -211,7 +241,10 @@ const ChatWindow = ({ chat, currentUserId, onBack, messages, onSendMessage, onEd
     <section className="chat-panel">
       <header className="chat-header">
         <button type="button" className="mobile-back" onClick={onBack}>←</button>
-        <img src={peer?.profilePic || 'https://placehold.co/48x48'} alt={peer?.username} />
+        <img
+          src={getUserAvatar({ profilePic: peer?.profilePic, fullName: peer?.fullName, username: peer?.username })}
+          alt={peer?.username}
+        />
         <div>
           <strong>{peer?.fullName || peer?.username}</strong>
           <p>{formatLastSeen(peer?.lastSeen, peer?.isOnline)}</p>
@@ -227,14 +260,6 @@ const ChatWindow = ({ chat, currentUserId, onBack, messages, onSendMessage, onEd
               key={item.key}
               message={item.value}
               isMine={item.value.sender?.toString?.() === currentUserId || item.value.sender === currentUserId}
-              isEditing={editingMessageId === item.value._id}
-              editValue={editingValue}
-              onEditChange={setEditingValue}
-              onEditCancel={() => {
-                setEditingMessageId('');
-                setEditingValue('');
-              }}
-              onEditSave={handleSaveEdit}
               onOpenActions={setActionMessage}
               onOpenImageViewer={setViewerImage}
             />
@@ -243,10 +268,15 @@ const ChatWindow = ({ chat, currentUserId, onBack, messages, onSendMessage, onEd
         <div ref={messageEndRef} />
       </div>
 
-      <div className={`typing-indicator ${isPeerTyping ? 'visible' : ''}`} aria-live="polite">
+      <div
+        className={`typing-indicator ${isPeerTyping ? 'visible' : ''}`}
+        aria-live="polite"
+      >
         {isPeerTyping ? (
           <>
-            <span className="typing-indicator__label">{peer?.fullName || peer?.username || 'User'} is typing</span>
+            <span className="typing-indicator__label">
+              {peer?.fullName || peer?.username || 'User'} is typing
+            </span>
             <span className="typing-indicator__dots" aria-hidden="true">
               <span />
               <span />
@@ -280,15 +310,11 @@ const ChatWindow = ({ chat, currentUserId, onBack, messages, onSendMessage, onEd
             onChange={(event) => {
               const nextValue = event.target.value;
               setText(nextValue);
-
               if (!nextValue.trim()) {
                 stopTyping();
                 return;
               }
-
-              if (!isTypingRef.current) {
-                emitTyping(true);
-              }
+              if (!isTypingRef.current) emitTyping(true);
               scheduleTypingStop();
             }}
             onBlur={stopTyping}
@@ -299,6 +325,17 @@ const ChatWindow = ({ chat, currentUserId, onBack, messages, onSendMessage, onEd
       </form>
 
       <ImageViewerModal image={viewerImage} onClose={() => setViewerImage(null)} />
+      <EditMessageModal
+        open={Boolean(editingMessage)}
+        value={editingValue}
+        originalMessage={editingMessage?.message || ''}
+        onChange={setEditingValue}
+        onCancel={() => {
+          setEditingMessageId('');
+          setEditingValue('');
+        }}
+        onSave={handleSaveEdit}
+      />
       <MessageActionModal
         open={Boolean(actionMessage)}
         title="Message actions"

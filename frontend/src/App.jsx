@@ -13,7 +13,7 @@ const ProfilePage = lazy(() => import('./pages/ProfilePage'));
 const SignupPage = lazy(() => import('./pages/SignupPage'));
 
 const App = () => {
-  const { isAuthenticated } = useAuth();
+  const { isAuthenticated, isBootstrapping } = useAuth();
   const [requests, setRequests] = useState([]);
   const [chatRefreshKey, setChatRefreshKey] = useState(0);
 
@@ -37,14 +37,19 @@ const App = () => {
     setChatRefreshKey((value) => value + 1);
   };
 
+  if (isBootstrapping) {
+    return <div className="screen-center">Loading Zappy...</div>;
+  }  
+
   return (
     <Layout requests={requests} onRespond={handleRespond}>
       <Suspense fallback={<div className="screen-center">Loading...</div>}>
         <Routes>
           <Route path="/" element={<Navigate to={isAuthenticated ? '/dashboard' : '/login'} replace />} />
-          <Route path="/login" element={<LoginPage />} />
-          <Route path="/signup" element={<SignupPage />} />
-          <Route path="/verify-otp" element={<OTPVerificationPage />} />
+
+          <Route path="/login" element={isAuthenticated ? <Navigate to="/dashboard" replace /> : <LoginPage />} />
+          <Route path="/signup" element={isAuthenticated ? <Navigate to="/dashboard" replace /> : <SignupPage />} />
+          <Route path="/verify-otp" element={isAuthenticated ? <Navigate to="/dashboard" replace /> : <OTPVerificationPage />} />
           <Route path="/forgot-password" element={<ForgotPasswordPage />} />
           <Route
             path="/dashboard"

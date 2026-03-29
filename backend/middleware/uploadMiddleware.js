@@ -3,7 +3,7 @@ import { ApiError } from '../utils/apiError.js';
 
 const allowedMimeTypes = ['image/jpeg', 'image/png', 'image/webp', 'image/gif'];
 const allowedExtensions = ['.jpg', '.jpeg', '.png', '.webp', '.gif'];
-const maxFileSize = Number(process.env.MAX_UPLOAD_SIZE_BYTES || 3 * 1024 * 1024);
+const maxFileSize = Number(process.env.MAX_UPLOAD_SIZE_BYTES || 10 * 1024 * 1024);
 
 const storage = multer.memoryStorage();
 

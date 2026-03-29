@@ -1,4 +1,4 @@
-import { body } from 'express-validator';
+import { body, query } from 'express-validator';
 
 const emailRule = body('email').isEmail().withMessage('Enter a valid email.').normalizeEmail();
 const passwordRule = body('password')
@@ -11,6 +11,15 @@ const dobRule = body('dob').isISO8601().withMessage('Date of birth is required.'
 export const sendOtpValidation = [
   emailRule,
   body('purpose').optional().isIn(['signup', 'password_reset']).withMessage('OTP purpose is invalid.')
+];
+
+export const usernameAvailabilityValidation = [
+  query('username')
+    .trim()
+    .isLength({ min: 3, max: 30 })
+    .withMessage('Username must be 3-30 characters.')
+    .matches(/^[a-zA-Z0-9_.]+$/)
+    .withMessage('Username can only contain letters, numbers, underscores, and periods.')
 ];
 
 export const verifyOtpValidation = [

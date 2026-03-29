@@ -2,6 +2,8 @@ import { useEffect, useMemo, useState } from 'react';
 import { Link, useLocation, useNavigate } from 'react-router-dom';
 import api from '../api/client';
 import { useAuth } from '../context/AuthContext';
+import useDebounce from '../hooks/useDebounce';
+import { getUserAvatar } from '../utils/avatar';
 import { useTheme } from '../context/ThemeContext';
 import { formatDateInputValue, formatDateOfBirth } from '../utils/formatters';
 
@@ -31,6 +33,8 @@ const ProfilePage = () => {
     dob: ''
   });
   const [passwordForm, setPasswordForm] = useState({ oldPassword: '', newPassword: '' });
+  const [usernameStatus, setUsernameStatus] = useState({ state: 'idle', message: '' });
+  const debouncedUsername = useDebounce(profileForm.username, 350);
 
   useEffect(() => {
     if (!user) return;
@@ -44,8 +48,53 @@ const ProfilePage = () => {
     });
   }, [user]);
 
+  useEffect(() => {
+    if (!isEditing) {
+      setUsernameStatus({ state: 'idle', message: '' });
+      return;
+    }
+
+    const username = debouncedUsername.trim();
+    if (!username || username === user?.username) {
+      setUsernameStatus({ state: 'idle', message: '' });
+      return;
+    }
+
+    if (!/^[a-zA-Z0-9_.]+$/.test(username) || username.length < 3 || username.length > 30) {
+      setUsernameStatus({
+        state: 'invalid',
+        message: 'Username must be 3-30 chars and only use letters, numbers, underscores, or periods.'
+      });
+      return;
+    }
+
+    let active = true;
+    setUsernameStatus({ state: 'checking', message: 'Checking username availability...' });
+    api
+      .get(`/auth/username-availability?username=${encodeURIComponent(username)}`)
+      .then(({ data }) => {
+        if (!active) return;
+        setUsernameStatus(
+          data.available
+            ? { state: 'available', message: 'Username available.' }
+            : { state: 'taken', message: 'Username already taken.' }
+        );
+      })
+      .catch(() => {
+        if (!active) return;
+        setUsernameStatus({ state: 'error', message: 'Unable to validate username right now.' });
+      });
+
+    return () => {
+      active = false;
+    };
+  }, [debouncedUsername, isEditing, user?.username]);
+
   const handleSaveProfile = async (event) => {
     event.preventDefault();
+    if (usernameStatus.state === 'checking' || usernameStatus.state === 'taken' || usernameStatus.state === 'invalid') {
+      return;
+    }
     setSaving(true);
     setStatus('');
 
@@ -93,7 +142,11 @@ const ProfilePage = () => {
           <button type="button" className="ghost back-home-button" onClick={() => navigate('/dashboard')}>
             ← Back to Home
           </button>
-          <img className="profile-hero-avatar" src={user?.profilePic || 'https://placehold.co/120x120'} alt={user?.username} />
+          <img
+            className="profile-hero-avatar"
+            src={getUserAvatar({ profilePic: user?.profilePic, fullName: user?.fullName, username: user?.username })}
+            alt={user?.username}
+          />
           <h2>{user?.fullName}</h2>
           <p>@{user?.username}</p>
           <p className="muted-copy">DOB: {formatDateOfBirth(user?.dob)}</p>
@@ -122,6 +175,9 @@ const ProfilePage = () => {
               </label>
               <input value={profileForm.fullName} disabled={!isEditing} onChange={(event) => setProfileForm((current) => ({ ...current, fullName: event.target.value }))} />
               <input value={profileForm.username} disabled={!isEditing} onChange={(event) => setProfileForm((current) => ({ ...current, username: event.target.value }))} />
+              {isEditing && usernameStatus.message && (
+                <small className={`username-status ${usernameStatus.state}`}>{usernameStatus.message}</small>
+              )}
               <input value={profileForm.email} disabled readOnly />
               <input value={profileForm.phone} disabled={!isEditing} onChange={(event) => setProfileForm((current) => ({ ...current, phone: event.target.value }))} />
               <input type="date" value={profileForm.dob} disabled={!isEditing} onChange={(event) => setProfileForm((current) => ({ ...current, dob: event.target.value }))} />
@@ -130,7 +186,14 @@ const ProfilePage = () => {
                 <option value="female">Female</option>
                 <option value="other">Other</option>
               </select>
-              {isEditing && <button type="submit" disabled={saving}>{saving ? 'Saving...' : 'Save Changes'}</button>}
+              {isEditing && (
+                <button
+                  type="submit"
+                  disabled={saving || usernameStatus.state === 'checking' || usernameStatus.state === 'taken' || usernameStatus.state === 'invalid'}
+                >
+                  {saving ? 'Saving...' : 'Save Changes'}
+                </button>
+              )}
               {status && <p className="muted-copy">{status}</p>}
             </form>
           )}

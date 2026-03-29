@@ -1,3 +1,5 @@
+import { getUserAvatar } from '../utils/avatar';
+
 const RequestDropdown = ({ open, requests, onRespond }) => {
   if (!open) return null;
 
@@ -12,7 +14,14 @@ const RequestDropdown = ({ open, requests, onRespond }) => {
       ) : (
         requests.map((request) => (
           <article key={request._id} className="request-item">
-            <img src={request.sender.profilePic || 'https://placehold.co/44x44'} alt={request.sender.username} />
+            <img
+              src={getUserAvatar({
+                profilePic: request.sender.profilePic,
+                fullName: request.sender.fullName,
+                username: request.sender.username
+              })}
+              alt={request.sender.username}
+            />
             <div>
               <strong>{request.sender.fullName}</strong>
               <p>@{request.sender.username}</p>

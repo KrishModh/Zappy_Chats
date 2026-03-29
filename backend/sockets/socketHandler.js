@@ -55,9 +55,8 @@ export const setupSocket = (io, app) => {
       const chats = await getUserChats(userId, app.locals.onlineUserIds);
       chats.forEach((chat) => socket.join(`chat:${chat._id}`));
 
-      // Connection pe — saare chats mein MUJHE bheje gaye sent messages deliver karo
       for (const chat of chats) {
-        const updates = await updateDeliveryStatus(chat._id, userId); // userId = receiver
+        const updates = await updateDeliveryStatus(chat._id, userId);
         if (updates?.length) {
           io.to(`chat:${chat._id}`).emit('message:status', { updates });
         }
@@ -73,11 +72,10 @@ export const setupSocket = (io, app) => {
           return callback({ ok: true, duplicate: true });
         }
 
-        // 👇 Image size check — 5MB se badi image reject karo
         const imageData = payload.imageData || '';
         if (imageData) {
           const imageSizeBytes = Buffer.byteLength(imageData, 'utf8');
-          const maxSizeBytes = 5 * 1024 * 1024; // 5MB
+          const maxSizeBytes = 5 * 1024 * 1024;
           if (imageSizeBytes > maxSizeBytes) {
             return callback({ ok: false, message: 'Image is too large. Maximum size is 5MB.' });
           }
@@ -115,12 +113,10 @@ export const setupSocket = (io, app) => {
       }
     });
 
-    // 👇 chat:join — sirf room join, delivered already on connection ho gaya
     socket.on('chat:join', (chatId) => {
       socket.join(`chat:${chatId}`);
     });
 
-    // 👇 chat:read — user ne chat kholi, read mark karo
     socket.on('chat:read', async (chatId) => {
       try {
         const updates = await markMessagesAsRead(chatId, userId);

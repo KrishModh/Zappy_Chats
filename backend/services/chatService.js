@@ -71,17 +71,14 @@ export const respondToRequest = async (requestId, currentUserId, action) => {
     const senderId = request.sender._id;
     const receiverId = request.receiver._id;
 
-    // Pehle dhundo
     chat = await Chat.findOne({
       participants: { $all: [senderId, receiverId], $size: 2 }
     }).populate('participants', 'username fullName profilePic lastSeen');
 
     if (!chat) {
-      // Nahi mila toh banao
       chat = await Chat.create({ participants: [senderId, receiverId], isActive: true });
       chat = await chat.populate('participants', 'username fullName profilePic lastSeen');
     } else if (!chat.isActive) {
-      // Tha but inactive tha — reactivate karo
       chat.isActive = true;
       await chat.save();
     }

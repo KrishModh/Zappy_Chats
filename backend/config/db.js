@@ -13,5 +13,5 @@ export const connectDB = async () => {
     autoIndex: process.env.NODE_ENV !== 'production'
   });
 
-  // logger.info('MongoDB connected successfully.');
+  logger.info('MongoDB connected successfully.');
 };

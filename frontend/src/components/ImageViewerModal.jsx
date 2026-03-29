@@ -96,10 +96,13 @@ const ImageViewerModal = ({ image, onClose }) => {
     }
   };
 
-  const handleDownload = () => {
+  const handleDownload = async () => {
+    const imageUrl = (image.src || image.originalSrc)
+      .replace('/upload/', '/upload/fl_attachment/');
+
     const anchor = document.createElement('a');
-    anchor.href = image.src || image.originalSrc;
-    anchor.download = 'zappy-image';
+    anchor.href = imageUrl;
+    anchor.download = 'zappy-image.png';
     document.body.appendChild(anchor);
     anchor.click();
     anchor.remove();
@@ -116,7 +119,7 @@ const ImageViewerModal = ({ image, onClose }) => {
           <button type="button" className="ghost" onClick={handleDownload}>Download</button>
           <div className="image-viewer-toolbar__actions">
             <button type="button" className="ghost" onClick={resetView}>Reset</button>
-            <button type="button" className="ghost" onClick={onClose}>✕</button>
+            <button type="button" className="ghost image-viewer-close" onClick={onClose}>✕</button>
           </div>
         </div>
         <div

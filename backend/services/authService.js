@@ -82,6 +82,16 @@ export const sendOtp = async ({ email, purpose = 'signup' }) => {
   await upsertOtp({ email, purpose });
 };
 
+export const checkUsernameAvailability = async (username) => {
+  const normalizedUsername = username.trim().toLowerCase();
+  if (!normalizedUsername) {
+    throw new ApiError(400, 'Username is required.');
+  }
+
+  const existing = await User.findOne({ username: normalizedUsername }).select('_id');
+  return { available: !existing };
+};
+
 export const forgotPassword = async ({ email }) => {
   const user = await User.findOne({ email });
 
@@ -115,6 +125,7 @@ export const verifyOtp = async ({ email, otp, purpose = 'signup' }) => {
 
 export const signup = async ({ body, file, req, res }) => {
   const { fullName, email, username, password, phone, gender, dob, otp } = body;
+  const normalizedUsername = username.trim().toLowerCase();
   const otpRecord = await getOtpRecord(email, 'signup');
 
   if (!otpRecord || otpRecord.expiresAt < new Date() || otpRecord.otp !== String(otp)) {
@@ -125,7 +136,7 @@ export const signup = async ({ body, file, req, res }) => {
     throw new ApiError(400, 'Please verify OTP before completing signup.');
   }
 
-  const existingUser = await User.findOne({ $or: [{ email }, { username }] });
+  const existingUser = await User.findOne({ $or: [{ email }, { username: normalizedUsername }] });
   if (existingUser) {
     throw new ApiError(409, 'A user with that email or username already exists.');
   }
@@ -145,7 +156,7 @@ export const signup = async ({ body, file, req, res }) => {
   const user = await User.create({
     fullName,
     email,
-    username,
+    username: normalizedUsername,
     password: await hashPassword(password),
     profilePic,
     phone,
@@ -158,7 +169,7 @@ export const signup = async ({ body, file, req, res }) => {
 };
 
 export const login = async ({ username, password, req, res }) => {
-  const user = await User.findOne({ username });
+  const user = await User.findOne({ username: username.trim().toLowerCase() });
 
   if (!user) {
     throw new ApiError(401, 'Invalid username or password.');

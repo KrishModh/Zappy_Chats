@@ -1,6 +1,7 @@
 import { asyncHandler } from '../utils/asyncHandler.js';
 import {
   changePassword,
+  checkUsernameAvailability,
   forgotPassword,
   getSessionUser,
   login,
@@ -15,6 +16,11 @@ import {
 export const sendOtpController = asyncHandler(async (req, res) => {
   await sendOtp(req.body);
   res.json({ message: 'OTP sent successfully.' });
+});
+
+export const checkUsernameAvailabilityController = asyncHandler(async (req, res) => {
+  const result = await checkUsernameAvailability(req.query.username || '');
+  res.json(result);
 });
 
 export const verifyOtpController = asyncHandler(async (req, res) => {

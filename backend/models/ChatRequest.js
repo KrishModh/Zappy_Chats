@@ -9,7 +9,6 @@ const chatRequestSchema = new mongoose.Schema(
   { timestamps: true }
 );
 
-// 👇 Unique index hataya — code mein check hota hai, duplicate index strict tha
 chatRequestSchema.index({ sender: 1, receiver: 1, status: 1 });
 
 export default mongoose.model('ChatRequest', chatRequestSchema);

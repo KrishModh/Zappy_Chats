@@ -37,7 +37,7 @@ const io = new Server(server, {
   cors: corsOptions,
   pingTimeout: 20000,
   pingInterval: 10000,
-  maxHttpBufferSize: 10 * 1024 * 1024 // 👈 andar hona chahiye
+  maxHttpBufferSize: 10 * 1024 * 1024,
 });
 
 app.locals.io = io;
@@ -48,7 +48,7 @@ const PORT = process.env.PORT || 5000;
 connectDB()
   .then(() => {
     server.listen(PORT, () => {
-      // logger.info(`Server running on port ${PORT}.`);
+      logger.info(`Server running on port ${PORT}.`);
     });
   })
   .catch((error) => {

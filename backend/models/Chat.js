@@ -10,6 +10,6 @@ const chatSchema = new mongoose.Schema(
   { timestamps: true }
 );
 
-chatSchema.index({ participants: 1 });
+chatSchema.index({ participants: 1, isActive: 1 });
 
 export default mongoose.model('Chat', chatSchema);
