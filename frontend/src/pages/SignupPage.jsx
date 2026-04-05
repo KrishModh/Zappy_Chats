@@ -1,11 +1,12 @@
 import { useEffect, useState } from 'react';
+import { GoogleLogin } from '@react-oauth/google';
 import { useNavigate } from 'react-router-dom';
 import api from '../api/client';
+import { useAuth } from '../context/AuthContext';
 import useDebounce from '../hooks/useDebounce';
 
 const initialForm = {
   fullName: '',
-  email: '',
   username: '',
   password: '',
   phone: '',
@@ -14,19 +15,42 @@ const initialForm = {
 };
 
 const SignupPage = () => {
+  const [idToken, setIdToken] = useState('');
+  const [googleEmail, setGoogleEmail] = useState('');
+  const [googleName, setGoogleName] = useState('');
+
   const [form, setForm] = useState(initialForm);
   const [profilePic, setProfilePic] = useState(null);
   const [usernameStatus, setUsernameStatus] = useState({ state: 'idle', message: '' });
+  const [error, setError] = useState('');
+  const [submitting, setSubmitting] = useState(false);
+  const [showPassword, setShowPassword] = useState(false);
+
   const debouncedUsername = useDebounce(form.username, 350);
   const navigate = useNavigate();
+  const { setSession } = useAuth();
 
-  const updateField = (field) => (event) => {
-    const value = field === 'profilePic' ? event.target.files?.[0] || null : event.target.value;
-    if (field === 'profilePic') {
-      setProfilePic(value);
-      return;
+  const decodeJwtPayload = (token) => {
+    try {
+      return JSON.parse(atob(token.split('.')[1]));
+    } catch {
+      return {};
     }
-    setForm((current) => ({ ...current, [field]: value }));
+  };
+
+  const handleGoogleSuccess = (credentialResponse) => {
+    const token = credentialResponse.credential;
+    const payload = decodeJwtPayload(token);
+
+    setIdToken(token);
+    setGoogleEmail(payload.email || '');
+    setForm((f) => ({ ...f, fullName: payload.name || '' }));
+    setGoogleName(payload.name || '');
+    setError('');
+  };
+
+  const handleGoogleError = () => {
+    setError('Google sign-in failed. Please try again.');
   };
 
   useEffect(() => {
@@ -62,17 +86,46 @@ const SignupPage = () => {
         setUsernameStatus({ state: 'error', message: 'Unable to check username right now.' });
       });
 
-    return () => {
-      active = false;
-    };
+    return () => { active = false; };
   }, [debouncedUsername]);
 
-  const handleSubmit = (event) => {
-    event.preventDefault();
-    if (usernameStatus.state === 'taken' || usernameStatus.state === 'checking' || usernameStatus.state === 'invalid') {
+  const updateField = (field) => (event) => {
+    if (field === 'profilePic') {
+      setProfilePic(event.target.files?.[0] || null);
       return;
     }
-    navigate('/verify-otp', { state: { form, profilePic } });
+    setForm((f) => ({ ...f, [field]: event.target.value }));
+  };
+
+  const handleSubmit = async (event) => {
+    event.preventDefault();
+    if (!idToken) { setError('Please sign in with Google first.'); return; }
+
+    const s = usernameStatus.state;
+    if (s === 'taken' || s === 'checking' || s === 'invalid') return;
+
+    setSubmitting(true);
+    setError('');
+
+    try {
+      const payload = new FormData();
+      payload.append('idToken', idToken);
+      payload.append('username', form.username);
+      payload.append('password', form.password);
+      payload.append('phone', form.phone);
+      payload.append('gender', form.gender);
+      payload.append('dob', form.dob);
+      payload.append('fullName', form.fullName);
+      if (profilePic) payload.append('profilePic', profilePic);
+
+      const { data } = await api.post('/auth/google-signup', payload);
+      setSession(data);
+      navigate('/dashboard');
+    } catch (err) {
+      setError(err.response?.data?.message || 'Signup failed. Please try again.');
+    } finally {
+      setSubmitting(false);
+    }
   };
 
   return (
@@ -80,60 +133,142 @@ const SignupPage = () => {
       <div className="auth-card large">
         <span className="chip">Quick & Secure Signup</span>
         <h1>Create your Zappy account</h1>
-        <form className="form-grid two-columns" onSubmit={handleSubmit}>
-          <label className="form-field">
-            <input placeholder="Enter your full name" value={form.fullName} onChange={updateField('fullName')} required />
-            <small className="field-hint">Use your real name so people can identify you easily.</small>
-          </label>
-          <label className="form-field">
-            <input type="email" placeholder="Enter your email (OTP will be sent)" value={form.email} onChange={updateField('email')} required />
-            <small className="field-hint">A one-time verification code will be sent to this email.</small>
-          </label>
-          <label className="form-field">
-            <input placeholder="Choose a unique username" value={form.username} onChange={updateField('username')} required />
-            <small className="field-hint">Only letters, numbers, underscores allowed.</small>
-            {usernameStatus.message && (
-              <small className={`username-status ${usernameStatus.state}`}>{usernameStatus.message}</small>
-            )}
-          </label>
-          <label className="form-field">
-            <input type="password" placeholder="Create a strong password" value={form.password} onChange={updateField('password')} required />
-            <small className="field-hint">Use 6–8 characters with at least one uppercase letter, number, and special symbol (*, @, $).</small>
-          </label>
-          <label className="form-field">
-            <input placeholder="Enter your phone number" value={form.phone} onChange={updateField('phone')} required />
-            <small className="field-hint">Include your active number for account recovery.</small>
-          </label>
-          <label className="form-field">
-            <input type="date" value={form.dob} onChange={updateField('dob')} required />
-            <small className="field-hint">Select your date of birth.</small>
-          </label>
-          <label className="form-field">
-            <select value={form.gender} onChange={updateField('gender')}>
-              <option value="other">Other</option>
-              <option value="male">Male</option>
-              <option value="female">Female</option>
-            </select>
-            <small className="field-hint">Choose Your Gender.</small>
-          </label>
-          <label className="file-field">
-            <span>Profile Picture</span>
-            <input type="file" accept="image/png,image/jpeg,image/webp,image/gif" onChange={updateField('profilePic')} />
-            <small className="field-hint">Upload your profile photo (optional).</small>
-          </label>
-          <div className="helper-panel">
-            <strong>Before you continue</strong>
-            <p>Zappy will send a 6-digit code to your email and only create the account after verification.</p>
-            <p>Selected image: {profilePic?.name || 'No image selected'}</p>
+
+        {!idToken ? (
+          <div className="google-step">
+            <p className="muted-copy">
+              First, verify your identity with Google. Your email will be pulled automatically.
+            </p>
+            <GoogleLogin
+              onSuccess={handleGoogleSuccess}
+              onError={handleGoogleError}
+              useOneTap={false}
+              text="signup_with"
+              shape="rectangular"
+              theme="filled_blue"
+            />
+            {error && <p className="error-text">{error}</p>}
+            <p className="muted-copy small">Already have an account? <a href="/login" style={{ textDecoration: "underline" }}>Log in</a></p>
           </div>
-          <button
-            type="submit"
-            className="full-width"
-            disabled={usernameStatus.state === 'taken' || usernameStatus.state === 'checking' || usernameStatus.state === 'invalid'}
-          >
-            Continue to OTP verification
-          </button>
-        </form>
+        ) : (
+          <form className="form-grid two-columns" onSubmit={handleSubmit}>
+            <div className="helper-panel full-width" style={{ marginBottom: '0.5rem' }}>
+              <strong>✅ Google verified:</strong> {googleEmail}
+              <p style={{ margin: '0.25rem 0 0' }}>
+                Signed in as <em>{googleName}</em>. Fill in the rest of your details below.
+              </p>
+            </div>
+
+            <label className="form-field">
+              <input
+                placeholder="Full name"
+                value={form.fullName}
+                onChange={updateField('fullName')}
+                required
+              />
+              <small className="field-hint">Pre-filled from your Google account. You can change it.</small>
+            </label>
+
+            <label className="form-field">
+              <input
+                placeholder="Choose a unique username"
+                value={form.username}
+                onChange={updateField('username')}
+                required
+              />
+              <small className="field-hint">Only letters, numbers, underscores or periods. 3–30 chars.</small>
+              {usernameStatus.message && (
+                <small className={`username-status ${usernameStatus.state}`}>
+                  {usernameStatus.message}
+                </small>
+              )}
+            </label>
+
+            {/* Password + Show password checkbox */}
+            <label className="form-field">
+              <input
+                type={showPassword ? 'text' : 'password'}
+                placeholder="Create a strong password"
+                value={form.password}
+                onChange={updateField('password')}
+              />
+              <small className="field-hint">Use 6–8 characters with at least one uppercase letter, number, and special symbol (*, @, $).</small>
+              <label className="show-password-label">
+                <input
+                  type="checkbox"
+                  checked={showPassword}
+                  onChange={(e) => setShowPassword(e.target.checked)}
+                />
+                Show password
+              </label>
+            </label>
+
+            <label className="form-field">
+              <input
+                placeholder="Phone number"
+                value={form.phone}
+                onChange={updateField('phone')}
+                required
+              />
+              <small className="field-hint">Include your active number for account recovery.</small>
+            </label>
+
+            <label className="form-field">
+              <input
+                type="date"
+                value={form.dob}
+                onChange={updateField('dob')}
+                required
+              />
+              <small className="field-hint">Select your date of birth.</small>
+            </label>
+
+            <label className="form-field">
+              <select value={form.gender} onChange={updateField('gender')}>
+                <option value="other">Other</option>
+                <option value="male">Male</option>
+                <option value="female">Female</option>
+              </select>
+              <small className="field-hint">Choose your gender.</small>
+            </label>
+
+            <label className="file-field">
+              <span>Profile Picture (optional)</span>
+              <input
+                type="file"
+                accept="image/png,image/jpeg,image/webp,image/gif"
+                onChange={updateField('profilePic')}
+              />
+              <small className="field-hint">
+                Selected: {profilePic?.name || 'No image selected'}
+              </small>
+            </label>
+
+            {error && <p className="error-text full-width">{error}</p>}
+
+            <button
+              type="submit"
+              className="full-width"
+              disabled={
+                submitting ||
+                usernameStatus.state === 'taken' ||
+                usernameStatus.state === 'checking' ||
+                usernameStatus.state === 'invalid'
+              }
+            >
+              {submitting ? 'Creating account...' : 'Create account'}
+            </button>
+
+            <button
+              type="button"
+              className="full-width"
+              style={{ background: 'transparent', color: 'var(--color-muted, #888)', marginTop: '0.25rem' }}
+              onClick={() => { setIdToken(''); setGoogleEmail(''); setError(''); }}
+            >
+              ← Use a different Google account
+            </button>
+          </form>
+        )}
       </div>
     </section>
   );

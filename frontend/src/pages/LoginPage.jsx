@@ -7,6 +7,7 @@ const LoginPage = () => {
   const [form, setForm] = useState({ username: '', password: '' });
   const [error, setError] = useState('');
   const [loading, setLoading] = useState(false);
+  const [showPassword, setShowPassword] = useState(false);
   const { setSession } = useAuth();
   const navigate = useNavigate();
 
@@ -31,7 +32,7 @@ const LoginPage = () => {
       <div className="auth-card">
         <span className="chip">Secure real-time chat</span>
         <h1>Welcome back to Zappy</h1>
-        <p className="muted-copy">A safer, WhatsApp-inspired chat experience with OTP signup and live updates.</p>
+        <p className="muted-copy">Experience secure chatting with instant updates and smooth connectivity.</p>
         <form className="form-grid" onSubmit={handleSubmit}>
           <input
             placeholder="Username"
@@ -40,17 +41,25 @@ const LoginPage = () => {
             required
           />
           <input
-            type="password"
+            type={showPassword ? 'text' : 'password'}
             placeholder="Password"
             value={form.password}
             onChange={(event) => setForm((current) => ({ ...current, password: event.target.value }))}
             required
           />
+          <label className="show-password-label">
+            <input
+              type="checkbox"
+              checked={showPassword}
+              onChange={(e) => setShowPassword(e.target.checked)}
+            />
+            Show password
+          </label>
           <button type="submit" disabled={loading}>{loading ? 'Signing in...' : 'Login'}</button>
         </form>
         {error && <p className="error-text">{error}</p>}
         <Link className="inline-link" to="/forgot-password">Forgot Password?</Link>
-        <p className="muted-copy">No account yet? <Link to="/signup">Create one</Link></p>
+        <p className="muted-copy">No account yet? <Link to="/signup" style={{ textDecoration: "underline" }}>Create one</Link></p>
       </div>
     </section>
   );

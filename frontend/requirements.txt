@@ -1,7 +1,0 @@
-react
-react-dom
-axios
-socket.io-client
-react-router-dom
-vite
-@vitejs/plugin-react

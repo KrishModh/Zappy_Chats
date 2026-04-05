@@ -2,15 +2,12 @@ import express from 'express';
 import {
   changePasswordController,
   checkUsernameAvailabilityController,
-  forgotPasswordController,
+  googleResetPasswordController,
+  googleSignupController,
   loginController,
   logoutController,
   meController,
-  refreshController,
-  resetPasswordController,
-  sendOtpController,
-  signupController,
-  verifyOtpController
+  refreshController
 } from '../controllers/authController.js';
 import { requireAuth } from '../middleware/authMiddleware.js';
 import { authLimiter } from '../middleware/securityMiddleware.js';
@@ -18,35 +15,49 @@ import { ensureSafeImage, upload } from '../middleware/uploadMiddleware.js';
 import { validateRequest } from '../middleware/validateMiddleware.js';
 import {
   changePasswordValidation,
-  forgotPasswordValidation,
+  googleResetPasswordValidation,
+  googleSignupValidation,
   loginValidation,
-  resetPasswordValidation,
-  sendOtpValidation,
-  signupValidation,
-  usernameAvailabilityValidation,
-  verifyOtpValidation
+  usernameAvailabilityValidation
 } from '../validators/authValidators.js';
 
 const router = express.Router();
 
-router.post('/send-otp', authLimiter, sendOtpValidation, validateRequest, sendOtpController);
-router.get('/username-availability', usernameAvailabilityValidation, validateRequest, checkUsernameAvailabilityController);
-router.post('/verify-otp', authLimiter, verifyOtpValidation, validateRequest, verifyOtpController);
-router.post('/forgot-password', authLimiter, forgotPasswordValidation, validateRequest, forgotPasswordController);
-router.post('/reset-password', authLimiter, resetPasswordValidation, validateRequest, resetPasswordController);
+// ── Google Signup ──────────────────────────────────────────────────────────────
 router.post(
-  '/signup',
+  '/google-signup',
   authLimiter,
   upload.single('profilePic'),
   ensureSafeImage,
-  signupValidation,
+  googleSignupValidation,
   validateRequest,
-  signupController
+  googleSignupController
 );
+
+// ── Google Reset Password (replaces OTP forgot-password flow) ─────────────────
+router.post(
+  '/google-reset-password',
+  authLimiter,
+  googleResetPasswordValidation,
+  validateRequest,
+  googleResetPasswordController
+);
+
+// ── Username check ─────────────────────────────────────────────────────────────
+router.get(
+  '/username-availability',
+  usernameAvailabilityValidation,
+  validateRequest,
+  checkUsernameAvailabilityController
+);
+
+// ── Login ──────────────────────────────────────────────────────────────────────
 router.post('/login', authLimiter, loginValidation, validateRequest, loginController);
+
+// ── Protected ──────────────────────────────────────────────────────────────────
 router.post('/change-password', requireAuth, changePasswordValidation, validateRequest, changePasswordController);
 router.post('/refresh', refreshController);
-router.post('/logout', logoutController);
-router.get('/me', requireAuth, meController);
+router.post('/logout',  logoutController);
+router.get('/me',       requireAuth, meController);
 
 export default router;

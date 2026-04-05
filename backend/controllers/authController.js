@@ -2,57 +2,51 @@ import { asyncHandler } from '../utils/asyncHandler.js';
 import {
   changePassword,
   checkUsernameAvailability,
-  forgotPassword,
   getSessionUser,
+  googleResetPassword,
+  googleSignup,
   login,
   logout,
-  refreshSession,
-  resetPassword,
-  sendOtp,
-  signup,
-  verifyOtp
+  refreshSession
 } from '../services/authService.js';
 
-export const sendOtpController = asyncHandler(async (req, res) => {
-  await sendOtp(req.body);
-  res.json({ message: 'OTP sent successfully.' });
+// ── Google Signup ──────────────────────────────────────────────────────────────
+export const googleSignupController = asyncHandler(async (req, res) => {
+  const session = await googleSignup({
+    idToken: req.body.idToken,
+    body: req.body,
+    file: req.file,
+    req,
+    res
+  });
+  res.status(201).json(session);
 });
 
+// ── Google Reset Password ──────────────────────────────────────────────────────
+export const googleResetPasswordController = asyncHandler(async (req, res) => {
+  const result = await googleResetPassword(req.body);
+  res.json(result);
+});
+
+// ── Username check ─────────────────────────────────────────────────────────────
 export const checkUsernameAvailabilityController = asyncHandler(async (req, res) => {
   const result = await checkUsernameAvailability(req.query.username || '');
   res.json(result);
 });
 
-export const verifyOtpController = asyncHandler(async (req, res) => {
-  await verifyOtp(req.body);
-  res.json({ message: 'OTP verified successfully.' });
-});
-
-export const signupController = asyncHandler(async (req, res) => {
-  const session = await signup({ body: req.body, file: req.file, req, res });
-  res.status(201).json(session);
-});
-
+// ── Login ──────────────────────────────────────────────────────────────────────
 export const loginController = asyncHandler(async (req, res) => {
   const session = await login({ ...req.body, req, res });
   res.json(session);
 });
 
+// ── Change Password (profile page) ────────────────────────────────────────────
 export const changePasswordController = asyncHandler(async (req, res) => {
   const result = await changePassword({ userId: req.auth.userId, ...req.body });
   res.json(result);
 });
 
-export const forgotPasswordController = asyncHandler(async (req, res) => {
-  const result = await forgotPassword(req.body);
-  res.json(result);
-});
-
-export const resetPasswordController = asyncHandler(async (req, res) => {
-  const result = await resetPassword(req.body);
-  res.json(result);
-});
-
+// ── Session ────────────────────────────────────────────────────────────────────
 export const refreshController = asyncHandler(async (req, res) => {
   const session = await refreshSession({ req, res });
   res.json(session);

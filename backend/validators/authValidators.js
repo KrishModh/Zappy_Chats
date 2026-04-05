@@ -1,17 +1,12 @@
 import { body, query } from 'express-validator';
 
-const emailRule = body('email').isEmail().withMessage('Enter a valid email.').normalizeEmail();
-const passwordRule = body('password')
-  .isLength({ min: 8 })
-  .withMessage('Password must be at least 8 characters.')
-  .matches(/(?=.*[A-Z])(?=.*[a-z])(?=.*\d)/)
-  .withMessage('Password must include uppercase, lowercase, and a number.');
-const dobRule = body('dob').isISO8601().withMessage('Date of birth is required.').toDate();
+// ─── Reusable rules ───────────────────────────────────────────────────────────
 
-export const sendOtpValidation = [
-  emailRule,
-  body('purpose').optional().isIn(['signup', 'password_reset']).withMessage('OTP purpose is invalid.')
-];
+const dobRule = body('dob')
+  .isISO8601().withMessage('Date of birth is required.')
+  .toDate();
+
+// ─── Validators ───────────────────────────────────────────────────────────────
 
 export const usernameAvailabilityValidation = [
   query('username')
@@ -22,26 +17,37 @@ export const usernameAvailabilityValidation = [
     .withMessage('Username can only contain letters, numbers, underscores, and periods.')
 ];
 
-export const verifyOtpValidation = [
-  emailRule,
-  body('otp').isLength({ min: 6, max: 6 }).withMessage('OTP must be 6 digits.').isNumeric(),
-  body('purpose').optional().isIn(['signup', 'password_reset']).withMessage('OTP purpose is invalid.')
-];
-
-export const signupValidation = [
-  body('fullName').trim().isLength({ min: 2, max: 80 }).withMessage('Full name must be 2-80 characters.'),
-  emailRule,
+export const googleSignupValidation = [
+  body('idToken')
+    .notEmpty().withMessage('Google ID token is required.'),
   body('username')
     .trim()
-    .isLength({ min: 3, max: 30 })
-    .withMessage('Username must be 3-30 characters.')
-    .matches(/^[a-zA-Z0-9_.]+$/)
-    .withMessage('Username can only contain letters, numbers, underscores, and periods.'),
-  passwordRule,
-  body('phone').trim().isLength({ min: 7, max: 20 }).withMessage('Phone number is invalid.'),
-  body('gender').isIn(['male', 'female', 'other']).withMessage('Gender is invalid.'),
+    .isLength({ min: 3, max: 30 }).withMessage('Username must be 3–30 characters.')
+    .matches(/^[a-zA-Z0-9_.]+$/).withMessage('Username can only contain letters, numbers, underscores, or periods.'),
+  body('password')
+    .optional({ nullable: true })
+    .isLength({ min: 6, max: 128 }).withMessage('Password is too weak — use at least 6 characters.'),
+  body('phone')
+    .notEmpty().withMessage('Phone number is required.'),
+  body('gender')
+    .isIn(['male', 'female', 'other']).withMessage('Gender must be male, female, or other.'),
   dobRule,
-  body('otp').isLength({ min: 6, max: 6 }).withMessage('OTP must be 6 digits.')
+  body('fullName')
+    .optional({ nullable: true })
+    .trim()
+    .isLength({ max: 80 }).withMessage('Full name must be at most 80 characters.')
+];
+
+export const googleResetPasswordValidation = [
+  body('idToken')
+    .notEmpty().withMessage('Google ID token is required.'),
+  body('newPassword')
+    .isLength({ min: 8 })
+    .withMessage('Password is too weak — use at least 8 characters.')
+    .matches(/(?=.*[A-Z])(?=.*[a-z])(?=.*\d)/)
+    .withMessage('Password is too weak — include uppercase, lowercase, and a number. (e.g. Zappy@123)'),
+  body('confirmPassword')
+    .notEmpty().withMessage('Please confirm your password.')
 ];
 
 export const loginValidation = [
@@ -53,19 +59,7 @@ export const changePasswordValidation = [
   body('oldPassword').notEmpty().withMessage('Old password is required.'),
   body('newPassword')
     .isLength({ min: 8 })
-    .withMessage('New password must be at least 8 characters.')
+    .withMessage('New password is too weak — use at least 8 characters.')
     .matches(/(?=.*[A-Z])(?=.*[a-z])(?=.*\d)/)
-    .withMessage('New password must include uppercase, lowercase, and a number.')
-];
-
-export const forgotPasswordValidation = [emailRule];
-
-export const resetPasswordValidation = [
-  emailRule,
-  body('newPassword')
-    .isLength({ min: 8 })
-    .withMessage('New password must be at least 8 characters.')
-    .matches(/(?=.*[A-Z])(?=.*[a-z])(?=.*\d)/)
-    .withMessage('New password must include uppercase, lowercase, and a number.'),
-  body('confirmPassword').notEmpty().withMessage('Confirm password is required.')
+    .withMessage('New password is too weak — include uppercase, lowercase, and a number. (e.g. Zappy@123)')
 ];

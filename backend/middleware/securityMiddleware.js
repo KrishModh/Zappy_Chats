@@ -7,7 +7,9 @@ import morgan from 'morgan';
 import rateLimit from 'express-rate-limit';
 import { logger } from '../config/logger.js';
 
-const allowedOrigins = (process.env.CLIENT_URLS || 'http://localhost:5173').split(',').map((item) => item.trim());
+const allowedOrigins = (process.env.CLIENT_URLS || 'http://localhost:5173')
+  .split(',')
+  .map((item) => item.trim());
 
 export const apiLimiter = rateLimit({
   windowMs: Number(process.env.RATE_LIMIT_WINDOW_MS || 15 * 60 * 1000),
@@ -30,15 +32,15 @@ export const corsOptions = {
     if (!origin || allowedOrigins.includes(origin)) {
       return callback(null, true);
     }
-
     return callback(new Error('Origin is not allowed by CORS.'));
   },
-  credentials: true
+  credentials: true  // cookies cross-domain bhejne ke liye zaroori
 };
 
 export const corsMiddleware = cors(corsOptions);
 
 export const applySecurityMiddleware = (app) => {
+  app.set('trust proxy', 1); // 👈 Render ke reverse proxy ke liye zaroori
   app.use(helmet());
   app.use(corsMiddleware);
   app.use(express.json({ limit: '1mb' }));

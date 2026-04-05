@@ -825,9 +825,11 @@ img {
   display: inline !important;
   font-size: 0.75rem;
 }
+
 .tick-read {
   color: #53bdeb !important;
 }
+
 .tick-delivered,
 .tick-sent {
   color: #8696a0 !important;
@@ -837,6 +839,7 @@ img {
 .message-bubble.mine .tick-read {
   color: #53bdeb !important;
 }
+
 .message-bubble.mine .tick-delivered,
 .message-bubble.mine .tick-sent {
   color: rgba(255, 255, 255, 0.78) !important;
@@ -944,7 +947,8 @@ img {
   padding: 0;
   border: none;
   border-radius: 12px;
-  overflow: visible; /* 👈 hidden se visible karo */
+  overflow: visible;
+  /* 👈 hidden se visible karo */
   background: transparent;
   display: block;
   width: fit-content;
@@ -973,7 +977,7 @@ img {
 }
 
 .chat-image-download {
-    position: absolute;
+  position: absolute;
   bottom: 10px;
   left: 50%;
   transform: translateX(-50%);
@@ -1408,11 +1412,6 @@ img {
   background: color-mix(in srgb, var(--surface-2) 72%, transparent);
 }
 
-.inline-link {
-  color: var(--accent);
-  font-weight: 600;
-}
-
 .error-text {
   color: #f87171;
 }
@@ -1712,7 +1711,8 @@ img {
   .message-image,
   .message-image-preview {
     width: 220px;
-    max-height: 300px;  }
+    max-height: 300px;
+  }
 
   .message-menu-button {
     opacity: 1;
@@ -1723,7 +1723,7 @@ img {
 
   }
 
-    .chat-image-download {
+  .chat-image-download {
     display: inline-flex !important;
   }
 
@@ -1797,4 +1797,96 @@ img {
     width: 100%;
     justify-content: center;
   }
+}
+
+.show-password-label {
+  display: flex;
+  align-items: center;
+  gap: 0.4rem;
+  font-size: 0.875rem;
+  cursor: pointer;
+  user-select: none;
+  margin-top: 0.25rem;
+}
+
+.show-password-label input[type="checkbox"] {
+  width: 1rem;
+  height: 1rem;
+  cursor: pointer;
+  flex-shrink: 0;
+}
+
+.auth-card .inline-link {
+  display: block;
+  text-align: center;
+  margin-top: 0.75rem;
+  font-size: 0.875rem;
+  color: var(--accent);
+  font-weight: 600;
+}
+
+/* ── Step 3: Success state ───────────────────────────────────────────────── */
+.reset-success {
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  text-align: center;
+  padding: 1.5rem 0.5rem;
+  gap: 1rem;
+}
+
+.reset-success__icon {
+  font-size: 4rem;
+  line-height: 1;
+  animation: pop-in 0.4s cubic-bezier(0.175, 0.885, 0.32, 1.275);
+}
+
+@keyframes pop-in {
+  0% {
+    transform: scale(0);
+    opacity: 0;
+  }
+
+  100% {
+    transform: scale(1);
+    opacity: 1;
+  }
+}
+
+.reset-success__title {
+  margin: 0;
+  font-size: 1.75rem;
+  background: linear-gradient(135deg, #4ade80, #22d3ee);
+  -webkit-background-clip: text;
+  -webkit-text-fill-color: transparent;
+  background-clip: text;
+}
+
+.reset-success__msg {
+  margin: 0;
+  color: var(--text-muted, #888);
+  font-size: 0.95rem;
+}
+
+.reset-success__btn {
+  width: 100%;
+  padding: 0.75rem 1.5rem;
+  border: none;
+  border-radius: 999px;
+  font-size: 1rem;
+  font-weight: 600;
+  cursor: pointer;
+  background: linear-gradient(135deg, #4ade80, #22d3ee);
+  color: #0f172a;
+  transition: opacity 0.2s ease, transform 0.2s ease;
+  margin-top: 0.25rem;
+}
+
+.reset-success__btn:hover {
+  opacity: 0.9;
+  transform: translateY(-2px);
+}
+
+.reset-success__btn:active {
+  transform: translateY(0);
 }
